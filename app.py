@@ -16,7 +16,7 @@ st.set_page_config(layout="wide")
 st.title("🌊 Texas Coastal Hydrologic Monitoring Dashboard")
 
 # --- Paths ---
-csv_path = "Datamap.csv"
+csv_path = "Water Quality Data - WQ Data for Datamap.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
 
@@ -62,25 +62,38 @@ available_params = sorted(df_long["CharacteristicName"].dropna().unique())
 selected_param = st.selectbox("📌 Select a Water Quality Parameter", available_params)
 filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
 
-latest_values = (
-    filtered_df.sort_values("ActivityStartDate")
-    .groupby("StationKey")
-    .tail(1)
-    .set_index("StationKey")
+# Date selection
+min_date = filtered_df["ActivityStartDate"].min().date()
+max_date = filtered_df["ActivityStartDate"].max().date()
+selected_date = st.date_input(
+    "📅 Optionally filter by specific date (leave blank for latest)",
+    value=None,
+    min_value=min_date,
+    max_value=max_date
 )
 
-# --- Colormap based on parameter values ---
+# Filter by date if provided
+if selected_date:
+    map_df = filtered_df[filtered_df["ActivityStartDate"].dt.date == selected_date]
+else:
+    map_df = (
+        filtered_df.sort_values("ActivityStartDate")
+        .groupby("StationKey")
+        .tail(1)
+        .set_index("StationKey")
+    )
+
+# --- Colormap ---
 min_val = filtered_df["ResultMeasureValue"].min()
 max_val = filtered_df["ResultMeasureValue"].max()
 colormap = linear.RdYlBu_11.scale(min_val, max_val)
 colormap.caption = f"{selected_param} Value Range"
 
 # --- Map ---
-st.subheader(f"🗺️ Latest Measurements of {selected_param}")
+st.subheader(f"🗺️ {'Data for ' + str(selected_date) if selected_date else 'Latest Measurements'} of {selected_param}")
 map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
 m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
-# Add shapefile
 folium.GeoJson(
     gdf_safe,
     style_function=lambda x: {
@@ -92,8 +105,8 @@ folium.GeoJson(
     name="Texas Coastal Counties"
 ).add_to(m)
 
-# Add markers with color scale
-for key, row in latest_values.iterrows():
+# Add markers
+for key, row in map_df.iterrows():
     lat, lon = row["Latitude"], row["Longitude"]
     val = row["ResultMeasureValue"]
     color = colormap(val)
