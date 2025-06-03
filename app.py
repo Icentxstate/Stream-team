@@ -13,10 +13,10 @@ from branca.colormap import linear
 from streamlit_folium import st_folium
 
 st.set_page_config(layout="wide")
-st.title("🌊 Texas Coastal Hydrologic Monitoring Dashboard")
+st.title("🌊 Texas Coastal Water Quality Dashboard (1990–1991 Historical Data)")
 
 # --- Paths ---
-csv_path = "Datamap.csv"
+csv_path = "Water Quality Data - WQ Data for Datamap.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
 
@@ -29,7 +29,7 @@ except Exception as e:
     st.error(f"❌ Failed to load CSV: {e}")
     st.stop()
 
-# --- Long Format Conversion ---
+# --- Long Format ---
 exclude_cols = ["Name", "Description", "Basin", "County", "Latitude", "Longitude", "TCEQ Stream Segment", "Sample Date"]
 value_cols = [col for col in df.columns if col not in exclude_cols]
 df_long = df.melt(
@@ -57,30 +57,41 @@ gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
 gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
 gdf_safe["geometry"] = gdf["geometry"]
 
-# --- UI ---
+# --- Parameter Selection ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
 selected_param = st.selectbox("📌 Select a Water Quality Parameter", available_params)
+
+# --- Time Filter Mode ---
+st.markdown("### 📅 Time Filter Option")
+time_filter_mode = st.radio("Choose how to filter station measurements:", 
+                            ["Latest value per station", "Specific date"])
+
+# --- Filter by param ---
 filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
 
-latest_values = (
-    filtered_df.sort_values("ActivityStartDate")
-    .groupby("StationKey")
-    .tail(1)
-    .set_index("StationKey")
-)
+if time_filter_mode == "Specific date":
+    all_dates = pd.to_datetime(filtered_df["ActivityStartDate"].dropna().unique())
+    selected_date = st.date_input("📆 Select Date", value=all_dates.max().date())
+    filtered_df = filtered_df[filtered_df["ActivityStartDate"].dt.date == selected_date]
+else:
+    filtered_df = (
+        filtered_df.sort_values("ActivityStartDate")
+        .groupby("StationKey")
+        .tail(1)
+        .set_index("StationKey")
+    )
 
-# --- Colormap based on parameter values ---
-min_val = filtered_df["ResultMeasureValue"].min()
-max_val = filtered_df["ResultMeasureValue"].max()
+# --- Colormap ---
+min_val = df_long[df_long["CharacteristicName"] == selected_param]["ResultMeasureValue"].min()
+max_val = df_long[df_long["CharacteristicName"] == selected_param]["ResultMeasureValue"].max()
 colormap = linear.RdYlBu_11.scale(min_val, max_val)
 colormap.caption = f"{selected_param} Value Range"
 
 # --- Map ---
-st.subheader(f"🗺️ Latest Measurements of {selected_param}")
-map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
+st.subheader(f"🗺️ Measurements of {selected_param}")
+map_center = [df_long["Latitude"].mean(), df_long["Longitude"].mean()]
 m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
-# Add shapefile
 folium.GeoJson(
     gdf_safe,
     style_function=lambda x: {
@@ -92,8 +103,7 @@ folium.GeoJson(
     name="Texas Coastal Counties"
 ).add_to(m)
 
-# Add markers with color scale
-for key, row in latest_values.iterrows():
+for _, row in filtered_df.iterrows():
     lat, lon = row["Latitude"], row["Longitude"]
     val = row["ResultMeasureValue"]
     color = colormap(val)
@@ -110,7 +120,7 @@ for key, row in latest_values.iterrows():
 colormap.add_to(m)
 st_data = st_folium(m, width=1300, height=600)
 
-# --- Click interaction ---
+# --- On Click ---
 if st_data and "last_object_clicked" in st_data:
     lat = st_data["last_object_clicked"].get("lat")
     lon = st_data["last_object_clicked"].get("lng")
