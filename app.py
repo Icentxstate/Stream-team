@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
@@ -10,7 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from streamlit_folium import st_folium
-import matplotlib.colors as mcolors
 
 st.set_page_config(page_title="Texas Water Quality Dashboard", page_icon="🌊", layout="wide")
 st.markdown("""
@@ -25,14 +23,15 @@ st.markdown("""
 
 st.title("💧 Texas Coastal Water Quality Dashboard (1990–1991 Historical Data)")
 
-# Load Google Sheets Data
-sheet_url = "https://docs.google.com/spreadsheets/d/1JAQLzSpbU2nMVb4Pe1XUA2lxU3a1XcY4oUYS8UhIaiA/export?format=csv&gid=1208759629"
+# --- Load CSV locally ---
+csv_path = "Water Quality Data - WQ Data for Datamap.csv"
 try:
-    df = pd.read_csv(sheet_url)
+    df = pd.read_csv(csv_path)
 except Exception as e:
-    st.error(f"❌ Failed to load data: {e}")
+    st.error(f"❌ Failed to load local CSV: {e}")
     st.stop()
 
+# --- Preprocess ---
 df = df.rename(columns={
     "Name": "StationName",
     "Latitude": "Lat",
@@ -53,7 +52,7 @@ long_df["ResultMeasureValue"] = pd.to_numeric(long_df["ResultMeasureValue"], err
 long_df["StationKey"] = long_df["Lat"].astype(str) + "," + long_df["Lon"].astype(str)
 long_df = long_df.dropna(subset=["ResultMeasureValue", "CharacteristicName"])
 
-# Load shapefile
+# --- Load shapefile ---
 shp_folder = "shp_extracted"
 shp_zip = "filtered_11_counties.zip"
 if not os.path.exists(shp_folder):
@@ -67,9 +66,11 @@ if not shp_files:
 
 gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
 
+# --- Dashboard UI ---
 available_params = sorted(long_df["CharacteristicName"].dropna().unique())
 selected_param = st.selectbox("📌 Select a Water Quality Parameter", available_params)
 filtered_df = long_df[long_df["CharacteristicName"] == selected_param]
+
 latest_values = (
     filtered_df.sort_values("ActivityStartDate")
     .groupby("StationKey")
@@ -81,6 +82,7 @@ st.subheader(f"🗺️ Latest Measurements of {selected_param}")
 map_center = [filtered_df["Lat"].mean(), filtered_df["Lon"].mean()]
 m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
+# Add shapefile to map
 folium.GeoJson(
     gdf,
     style_function=lambda x: {
@@ -92,6 +94,7 @@ folium.GeoJson(
     name="Texas Coastal Counties"
 ).add_to(m)
 
+# Add station markers
 for key, row in latest_values.iterrows():
     lat, lon = row["Lat"], row["Lon"]
     val = row["ResultMeasureValue"]
@@ -106,3 +109,44 @@ for key, row in latest_values.iterrows():
     ).add_to(m)
 
 st_data = st_folium(m, width=1300, height=600)
+
+# --- Click interaction ---
+if st_data and "last_object_clicked" in st_data:
+    lat = st_data["last_object_clicked"].get("lat")
+    lon = st_data["last_object_clicked"].get("lng")
+    if lat and lon:
+        st.markdown("---")
+        st.markdown("### 🧪 Selected Station")
+        coords = f"{lat},{lon}"
+        st.write(f"📍 Coordinates: `{lat:.5f}, {lon:.5f}`")
+        ts_df = long_df[long_df["StationKey"] == coords].sort_values("ActivityStartDate")
+        subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
+
+        st.markdown("**📌 Select Parameters for Time Series**")
+        selected = st.multiselect("📉 Choose parameters", options=subparams, default=subparams[:1])
+
+        if selected:
+            plot_df = (
+                ts_df[ts_df["CharacteristicName"].isin(selected)]
+                .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+                .dropna(how='all')
+            )
+            st.subheader("📈 Time Series (Dot Plot)")
+            fig, ax = plt.subplots(figsize=(10, 5))
+            for col in plot_df.columns:
+                ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
+            ax.set_ylabel("Value")
+            ax.set_xlabel("Date")
+            ax.legend()
+            st.pyplot(fig)
+
+            st.markdown("📊 **Statistical Summary**")
+            st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
+
+            st.markdown("🧮 **Correlation Heatmap**")
+            corr = plot_df.corr()
+            fig2, ax2 = plt.subplots(figsize=(8, 6))
+            sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax2)
+            st.pyplot(fig2)
+        else:
+            st.info("Please select at least one parameter.")
