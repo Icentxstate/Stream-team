@@ -16,7 +16,7 @@ st.set_page_config(layout="wide")
 st.title("🌊 Texas Coastal Hydrologic Monitoring Dashboard")
 
 # --- Paths ---
-csv_path = "Datamap.csv"
+csv_path = "WQ.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
 
