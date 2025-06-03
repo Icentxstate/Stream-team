@@ -9,49 +9,40 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from streamlit_folium import st_folium
+import matplotlib.colors as mcolors
 
-st.set_page_config(page_title="Texas Water Quality Dashboard", page_icon="🌊", layout="wide")
-st.markdown("""
-    <style>
-    .main { background-color: #f4f9ff; }
-    .stSelectbox>div>div { background-color: #e3f2fd; border-radius: 0.5rem; }
-    .stDataFrameContainer { border-radius: 1rem; overflow: hidden; }
-    </style>
-""", unsafe_allow_html=True)
+st.set_page_config(layout="wide")
+st.title("🌊 Texas Coastal Hydrologic Monitoring Dashboard")
 
-st.title("💧 Texas Coastal Water Quality Dashboard (1990–1991 Historical Data)")
+# --- Paths ---
+csv_path = "Water Quality Data - WQ Data for Datamap.csv"
+shp_zip = "filtered_11_counties.zip"
+shp_folder = "shp_extracted"
 
 # --- Load CSV ---
-csv_path = "Water Quality Data - WQ Data for Datamap.csv"
 try:
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, low_memory=False)
+    df = df.dropna(subset=["Latitude", "Longitude"])
+    df["ActivityStartDate"] = pd.to_datetime(df["Sample Date"], errors='coerce')
 except Exception as e:
     st.error(f"❌ Failed to load CSV: {e}")
     st.stop()
 
-df = df.rename(columns={
-    "Name": "StationName",
-    "Latitude": "Lat",
-    "Longitude": "Lon",
-    "Sample Date": "ActivityStartDate"
-})
-df["ActivityStartDate"] = pd.to_datetime(df["ActivityStartDate"], errors='coerce')
-df = df.dropna(subset=["Lat", "Lon", "ActivityStartDate"])
-
-value_cols = [col for col in df.columns if col not in ["StationName", "Description", "Basin", "County", "Lat", "Lon", "TCEQ Stream Segment", "ActivityStartDate"]]
-long_df = df.melt(
-    id_vars=["StationName", "Lat", "Lon", "ActivityStartDate"],
+# --- Long Format Conversion ---
+exclude_cols = ["Name", "Description", "Basin", "County", "Latitude", "Longitude", "TCEQ Stream Segment", "Sample Date"]
+value_cols = [col for col in df.columns if col not in exclude_cols]
+df_long = df.melt(
+    id_vars=["Name", "Latitude", "Longitude", "Sample Date"],
     value_vars=value_cols,
     var_name="CharacteristicName",
     value_name="ResultMeasureValue"
 )
-long_df["ResultMeasureValue"] = pd.to_numeric(long_df["ResultMeasureValue"], errors="coerce")
-long_df["StationKey"] = long_df["Lat"].astype(str) + "," + long_df["Lon"].astype(str)
-long_df = long_df.dropna(subset=["ResultMeasureValue", "CharacteristicName"])
+df_long["ActivityStartDate"] = pd.to_datetime(df_long["Sample Date"], errors='coerce')
+df_long["ResultMeasureValue"] = pd.to_numeric(df_long["ResultMeasureValue"], errors="coerce")
+df_long["StationKey"] = df_long["Latitude"].astype(str) + "," + df_long["Longitude"].astype(str)
+df_long = df_long.dropna(subset=["ActivityStartDate", "ResultMeasureValue", "CharacteristicName"])
 
 # --- Load shapefile ---
-shp_folder = "shp_extracted"
-shp_zip = "filtered_11_counties.zip"
 if not os.path.exists(shp_folder):
     with zipfile.ZipFile(shp_zip, 'r') as zip_ref:
         zip_ref.extractall(shp_folder)
@@ -62,13 +53,13 @@ if not shp_files:
     st.stop()
 
 gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
-gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in "ifOU"]].copy()
+gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
 gdf_safe["geometry"] = gdf["geometry"]
 
-# --- UI and Visualization ---
-available_params = sorted(long_df["CharacteristicName"].dropna().unique())
-selected_param = st.selectbox("📌 Select a Water Quality Parameter", available_params)
-filtered_df = long_df[long_df["CharacteristicName"] == selected_param]
+# --- UI ---
+available_params = sorted(df_long["CharacteristicName"].dropna().unique())
+selected_param = st.selectbox("📌 Select a Water Quality Parameter for Map", available_params)
+filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
 
 latest_values = (
     filtered_df.sort_values("ActivityStartDate")
@@ -77,8 +68,9 @@ latest_values = (
     .set_index("StationKey")
 )
 
+# --- Map ---
 st.subheader(f"🗺️ Latest Measurements of {selected_param}")
-map_center = [filtered_df["Lat"].mean(), filtered_df["Lon"].mean()]
+map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
 m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
 folium.GeoJson(
@@ -93,9 +85,9 @@ folium.GeoJson(
 ).add_to(m)
 
 for key, row in latest_values.iterrows():
-    lat, lon = row["Lat"], row["Lon"]
+    lat, lon = row["Latitude"], row["Longitude"]
     val = row["ResultMeasureValue"]
-    popup_html = f"<b>Station:</b> {row['StationName']}<br><b>{selected_param}:</b> {val:.2f}<br><b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}"
+    popup_html = f"<b>Station:</b> {row['Name']}<br><b>{selected_param}:</b> {val:.2f}<br><b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}"
     folium.CircleMarker(
         location=[lat, lon],
         radius=5 + min(max(val, 0), 100) ** 0.5,
@@ -116,7 +108,7 @@ if st_data and "last_object_clicked" in st_data:
         st.markdown("### 🧪 Selected Station")
         coords = f"{lat},{lon}"
         st.write(f"📍 Coordinates: `{lat:.5f}, {lon:.5f}`")
-        ts_df = long_df[long_df["StationKey"] == coords].sort_values("ActivityStartDate")
+        ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
         subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
 
         st.markdown("**📌 Select Parameters for Time Series**")
