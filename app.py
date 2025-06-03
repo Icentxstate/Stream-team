@@ -14,8 +14,6 @@ st.set_page_config(page_title="Texas Water Quality Dashboard", page_icon="🌊",
 st.markdown("""
     <style>
     .main { background-color: #f4f9ff; }
-    .css-18e3th9 { padding-top: 2rem; padding-bottom: 2rem; }
-    h1, h2, h3 { color: #0b5394; }
     .stSelectbox>div>div { background-color: #e3f2fd; border-radius: 0.5rem; }
     .stDataFrameContainer { border-radius: 1rem; overflow: hidden; }
     </style>
@@ -23,15 +21,14 @@ st.markdown("""
 
 st.title("💧 Texas Coastal Water Quality Dashboard (1990–1991 Historical Data)")
 
-# --- Load CSV locally ---
+# --- Load CSV ---
 csv_path = "Water Quality Data - WQ Data for Datamap.csv"
 try:
     df = pd.read_csv(csv_path)
 except Exception as e:
-    st.error(f"❌ Failed to load local CSV: {e}")
+    st.error(f"❌ Failed to load CSV: {e}")
     st.stop()
 
-# --- Preprocess ---
 df = df.rename(columns={
     "Name": "StationName",
     "Latitude": "Lat",
@@ -65,8 +62,10 @@ if not shp_files:
     st.stop()
 
 gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
+gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in "ifOU"]].copy()
+gdf_safe["geometry"] = gdf["geometry"]
 
-# --- Dashboard UI ---
+# --- UI and Visualization ---
 available_params = sorted(long_df["CharacteristicName"].dropna().unique())
 selected_param = st.selectbox("📌 Select a Water Quality Parameter", available_params)
 filtered_df = long_df[long_df["CharacteristicName"] == selected_param]
@@ -82,9 +81,8 @@ st.subheader(f"🗺️ Latest Measurements of {selected_param}")
 map_center = [filtered_df["Lat"].mean(), filtered_df["Lon"].mean()]
 m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
-# Add shapefile to map
 folium.GeoJson(
-    gdf,
+    gdf_safe,
     style_function=lambda x: {
         "fillColor": "#0b5394",
         "color": "#0b5394",
@@ -94,7 +92,6 @@ folium.GeoJson(
     name="Texas Coastal Counties"
 ).add_to(m)
 
-# Add station markers
 for key, row in latest_values.iterrows():
     lat, lon = row["Lat"], row["Lon"]
     val = row["ResultMeasureValue"]
