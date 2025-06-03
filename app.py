@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
@@ -8,14 +9,14 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from branca.colormap import linear
 from streamlit_folium import st_folium
-import matplotlib.colors as mcolors
 
 st.set_page_config(layout="wide")
 st.title("🌊 Texas Coastal Hydrologic Monitoring Dashboard")
 
 # --- Paths ---
-csv_path = "Datamap.csv"
+csv_path = "Water Quality Data - WQ Data for Datamap.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
 
@@ -58,7 +59,7 @@ gdf_safe["geometry"] = gdf["geometry"]
 
 # --- UI ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
-selected_param = st.selectbox("📌 Select a Water Quality Parameter for Map", available_params)
+selected_param = st.selectbox("📌 Select a Water Quality Parameter", available_params)
 filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
 
 latest_values = (
@@ -68,11 +69,18 @@ latest_values = (
     .set_index("StationKey")
 )
 
+# --- Colormap based on parameter values ---
+min_val = filtered_df["ResultMeasureValue"].min()
+max_val = filtered_df["ResultMeasureValue"].max()
+colormap = linear.RdYlBu_11.scale(min_val, max_val)
+colormap.caption = f"{selected_param} Value Range"
+
 # --- Map ---
 st.subheader(f"🗺️ Latest Measurements of {selected_param}")
 map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
 m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
+# Add shapefile
 folium.GeoJson(
     gdf_safe,
     style_function=lambda x: {
@@ -84,19 +92,22 @@ folium.GeoJson(
     name="Texas Coastal Counties"
 ).add_to(m)
 
+# Add markers with color scale
 for key, row in latest_values.iterrows():
     lat, lon = row["Latitude"], row["Longitude"]
     val = row["ResultMeasureValue"]
+    color = colormap(val)
     popup_html = f"<b>Station:</b> {row['Name']}<br><b>{selected_param}:</b> {val:.2f}<br><b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}"
     folium.CircleMarker(
         location=[lat, lon],
-        radius=5 + min(max(val, 0), 100) ** 0.5,
-        color="blue",
+        radius=6,
+        color=color,
         fill=True,
-        fill_opacity=0.7,
+        fill_opacity=0.8,
         popup=folium.Popup(popup_html, max_width=300),
     ).add_to(m)
 
+colormap.add_to(m)
 st_data = st_folium(m, width=1300, height=600)
 
 # --- Click interaction ---
