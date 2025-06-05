@@ -11,54 +11,60 @@ import seaborn as sns
 from branca.colormap import linear
 from streamlit_folium import st_folium
 
-# --- UI config ---
+# --- صفحه با قالب تیره و هماهنگ ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #111111;
-        color: #e0e0e0;
+        background-color: #12181b;
+        color: #d0d0d0;
         font-family: 'Segoe UI', sans-serif;
     }
 
-    h1, h2, h3, h4, label, .stMarkdown, .stText, .css-10trblm, .css-1v3fvcr {
-        color: #ffffff !important;
+    h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
+        color: #f1f3f4 !important;
         font-weight: bold !important;
     }
 
-    .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm, .stButton > button {
-        background-color: #1e1e1e !important;
+    .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
+        background-color: #1f2a2e !important;
         color: #e0e0e0 !important;
         border-radius: 8px;
-        border: 1px solid #444444;
+        border: 1px solid #3a4a4f;
     }
 
     .stButton > button {
-        background-color: #0b5394 !important;
+        background-color: #2563eb !important;
         color: white !important;
         font-weight: bold;
-        border: none;
+        border-radius: 6px;
+        transition: 0.2s;
     }
 
     .stButton > button:hover {
-        background-color: #124c8c !important;
+        background-color: #3b82f6 !important;
     }
 
     .css-6qob1r, .css-1d391kg {
-        background-color: #1a1a1a !important;
+        background-color: #1c2428 !important;
     }
 
     .dataframe tbody tr {
-        background-color: #222222 !important;
+        background-color: #1e2a30 !important;
         color: #ffffff;
     }
 
     .block-container > div > h2 {
-        padding: 0.5rem;
-        background-color: #222222;
-        border-left: 5px solid #0b5394;
-        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        background-color: #1e2a30;
+        border-left: 5px solid #2563eb;
+        border-radius: 6px;
         margin-bottom: 1rem;
+    }
+
+    .stDataFrame, .stTable {
+        background-color: #1e2a30 !important;
+        color: #f0f0f0 !important;
     }
 
     iframe {
@@ -67,18 +73,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Session state ---
+# --- وضعیت‌ها ---
 if "view" not in st.session_state:
     st.session_state.view = "map"
 if "selected_point" not in st.session_state:
     st.session_state.selected_point = None
 
-# --- Paths ---
+# --- مسیرها ---
 csv_path = "WQ.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
 
-# --- Load CSV ---
+# --- بارگذاری CSV ---
 try:
     df = pd.read_csv(csv_path, low_memory=False)
     df = df.dropna(subset=["Latitude", "Longitude"])
@@ -87,7 +93,7 @@ except Exception as e:
     st.error(f"❌ Failed to load CSV: {e}")
     st.stop()
 
-# --- Melt ---
+# --- تبدیل Long Format ---
 exclude_cols = ["Name", "Description", "Basin", "County", "Latitude", "Longitude", "TCEQ Stream Segment", "Sample Date"]
 value_cols = [col for col in df.columns if col not in exclude_cols]
 df_long = df.melt(
@@ -101,22 +107,20 @@ df_long["ResultMeasureValue"] = pd.to_numeric(df_long["ResultMeasureValue"], err
 df_long["StationKey"] = df_long["Latitude"].astype(str) + "," + df_long["Longitude"].astype(str)
 df_long = df_long.dropna(subset=["ActivityStartDate", "ResultMeasureValue", "CharacteristicName"])
 
-# --- Load Shapefile ---
+# --- بارگذاری شیپ‌فایل ---
 if not os.path.exists(shp_folder):
     with zipfile.ZipFile(shp_zip, 'r') as zip_ref:
         zip_ref.extractall(shp_folder)
-
 shp_files = glob.glob(os.path.join(shp_folder, "**", "*.shp"), recursive=True)
 if not shp_files:
     st.error("❌ No shapefile found.")
     st.stop()
-
 gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
 gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
 gdf_safe["geometry"] = gdf["geometry"]
 bounds = gdf.total_bounds
 
-# --- Sidebar Inputs ---
+# --- Sidebar ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
 selected_param = st.sidebar.selectbox("📌 Select Parameter", available_params)
 filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
@@ -154,7 +158,7 @@ basemap_tiles = {
     }
 }
 
-# --- VIEW 1: Map ---
+# --- نمایش نقشه ---
 if st.session_state.view == "map":
     st.title("🌍 Texas Coastal Monitoring Map")
 
@@ -203,7 +207,7 @@ if st.session_state.view == "map":
             st.session_state.view = "details"
             st.rerun()
 
-# --- VIEW 2: Details ---
+# --- تحلیل ایستگاه ---
 elif st.session_state.view == "details":
     coords = st.session_state.selected_point
     lat, lon = map(float, coords.split(","))
