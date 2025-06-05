@@ -107,21 +107,9 @@ folium.GeoJson(
     },
     name="Texas Coastal Counties"
 ).add_to(m)
-# --- Load rivers shapefile ---
-if not os.path.exists(rivers_folder):
-    with zipfile.ZipFile(rivers_zip, 'r') as zip_ref:
-        zip_ref.extractall(rivers_folder)
 
-river_shp_files = glob.glob(os.path.join(rivers_folder, "**", "*.shp"), recursive=True)
-if not river_shp_files:
-    st.warning("⚠️ No rivers shapefile found.")
-    gdf_rivers = None
-else:
-    gdf_rivers = gpd.read_file(river_shp_files[0]).to_crs(epsg=4326)
-
-# --- Add rivers to map ---
+# Add river lines with dynamic color and label
 if gdf_rivers is not None:
-    # Find a column for labeling (default: "Name")
     label_col = "Name"
     if label_col not in gdf_rivers.columns:
         text_columns = [col for col in gdf_rivers.columns if gdf_rivers[col].dtype == "object"]
@@ -167,6 +155,23 @@ if gdf_rivers is not None:
                     }
                 ).add_to(m)
 
+# Add circle markers for water quality
+for key, row in latest_values.iterrows():
+    lat, lon = row["Latitude"], row["Longitude"]
+    val = row["ResultMeasureValue"]
+    color = colormap(val)
+    popup_html = f"<b>Station:</b> {row['Name']}<br><b>{selected_param}:</b> {val:.2f}<br><b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}"
+    folium.CircleMarker(
+        location=[lat, lon],
+        radius=6,
+        color=color,
+        fill=True,
+        fill_opacity=0.8,
+        popup=folium.Popup(popup_html, max_width=300),
+    ).add_to(m)
+
+colormap.add_to(m)
+st_data = st_folium(m, width=1300, height=600)
 
 # --- Click interaction ---
 if st_data and "last_object_clicked" in st_data:
