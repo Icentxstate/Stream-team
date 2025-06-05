@@ -55,6 +55,7 @@ if not shp_files:
 gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
 gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
 gdf_safe["geometry"] = gdf["geometry"]
+bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
 
 # --- UI ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
@@ -106,13 +107,14 @@ basemap_tiles = {
 }
 
 # --- Map ---
-map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
 m = folium.Map(
-    location=map_center,
-    zoom_start=7,
+    location=[(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2],  # center based on bounds
     tiles=basemap_tiles[basemap_option]["tiles"],
     attr=basemap_tiles[basemap_option]["attr"]
 )
+
+# Fit to shapefile bounds
+m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
 
 # Add counties
 folium.GeoJson(
