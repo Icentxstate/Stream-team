@@ -16,8 +16,8 @@ st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #1e2e28;
-        color: #e2f1ed;
+        background-color: #e9f5f2;
+        color: #1e2e28;
         font-family: 'Segoe UI', sans-serif;
     }
 
