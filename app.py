@@ -16,25 +16,25 @@ st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #2f333b;
-        color: #e2e2e2;
+        background-color: #1e2e28;
+        color: #e2f1ed;
         font-family: 'Segoe UI', sans-serif;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
-        color: #f5f5f5 !important;
+        color: #e6fff8 !important;
         font-weight: bold !important;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
-        background-color: #3a3f47 !important;
-        color: #f0f0f0 !important;
+        background-color: #254d4a !important;
+        color: #e0fff7 !important;
         border-radius: 8px;
-        border: 1px solid #5a5f67;
+        border: 1px solid #3e736e;
     }
 
     .stButton > button {
-        background-color: #3b82f6 !important;
+        background-color: #2bb673 !important;
         color: white !important;
         font-weight: bold;
         border-radius: 6px;
@@ -42,28 +42,28 @@ st.markdown("""
     }
 
     .stButton > button:hover {
-        background-color: #60a5fa !important;
+        background-color: #39d98a !important;
     }
 
     .css-6qob1r, .css-1d391kg {
-        background-color: #3a3f47 !important;
+        background-color: #2a4c44 !important;
     }
 
     .dataframe tbody tr {
-        background-color: #363b44 !important;
+        background-color: #2e5e53 !important;
         color: #ffffff;
     }
 
     .block-container > div > h2 {
         padding: 0.6rem 1rem;
-        background-color: #3a3f47;
-        border-left: 5px solid #3b82f6;
+        background-color: #2f5c52;
+        border-left: 5px solid #2bb673;
         border-radius: 6px;
         margin-bottom: 1rem;
     }
 
     .stDataFrame, .stTable {
-        background-color: #3a3f47 !important;
+        background-color: #2a4c44 !important;
         color: #f0f0f0 !important;
     }
 
@@ -133,7 +133,7 @@ latest_values = (
 
 min_val = filtered_df["ResultMeasureValue"].min()
 max_val = filtered_df["ResultMeasureValue"].max()
-colormap = linear.RdYlBu_11.scale(min_val, max_val)
+colormap = linear.YlGnBu_09.scale(min_val, max_val)
 colormap.caption = f"{selected_param} Range"
 
 basemap_option = st.sidebar.selectbox("🗺️ Basemap Style", [
@@ -171,8 +171,8 @@ if st.session_state.view == "map":
     folium.GeoJson(
         gdf_safe,
         style_function=lambda x: {
-            "fillColor": "#0b5394",
-            "color": "#0b5394",
+            "fillColor": "#338a6d",
+            "color": "#338a6d",
             "weight": 2,
             "fillOpacity": 0.3,
         },
@@ -243,7 +243,7 @@ elif st.session_state.view == "details":
         st.subheader("🧮 Correlation Heatmap")
         corr = plot_df.corr()
         fig2, ax2 = plt.subplots(figsize=(8, 6))
-        sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax2)
+        sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
         st.pyplot(fig2)
     else:
         st.info("Please select at least one parameter.")
