@@ -107,64 +107,66 @@ folium.GeoJson(
     },
     name="Texas Coastal Counties"
 ).add_to(m)
+# --- Load rivers shapefile ---
+if not os.path.exists(rivers_folder):
+    with zipfile.ZipFile(rivers_zip, 'r') as zip_ref:
+        zip_ref.extractall(rivers_folder)
 
-# Add river lines with labels
-if gdf_rivers is not None and "Name" in gdf_rivers.columns:
-    unique_rivers = gdf_rivers["Name"].dropna().unique()
-    color_palette = list(mcolors.CSS4_COLORS.values())
-    random.shuffle(color_palette)
-    river_color_map = {name: color_palette[i % len(color_palette)] for i, name in enumerate(unique_rivers)}
+river_shp_files = glob.glob(os.path.join(rivers_folder, "**", "*.shp"), recursive=True)
+if not river_shp_files:
+    st.warning("⚠️ No rivers shapefile found.")
+    gdf_rivers = None
+else:
+    gdf_rivers = gpd.read_file(river_shp_files[0]).to_crs(epsg=4326)
 
-    for _, row in gdf_rivers.iterrows():
-        name = row["Name"] if pd.notnull(row["Name"]) else "Unnamed River"
-        color = river_color_map.get(name, "#0077b6")
+# --- Add rivers to map ---
+if gdf_rivers is not None:
+    # Find a column for labeling (default: "Name")
+    label_col = "Name"
+    if label_col not in gdf_rivers.columns:
+        text_columns = [col for col in gdf_rivers.columns if gdf_rivers[col].dtype == "object"]
+        label_col = text_columns[0] if text_columns else None
 
-        if row.geometry.type == "LineString":
-            segments = [row.geometry]
-        elif row.geometry.type == "MultiLineString":
-            segments = row.geometry.geoms
-        else:
-            continue
+    if label_col is None:
+        st.warning("⚠️ No valid label column found in rivers shapefile.")
+    else:
+        unique_labels = gdf_rivers[label_col].dropna().unique()
+        color_palette = list(mcolors.CSS4_COLORS.values())
+        random.shuffle(color_palette)
+        label_color_map = {name: color_palette[i % len(color_palette)] for i, name in enumerate(unique_labels)}
 
-        for seg in segments:
-            coords = [(lat, lon) for lon, lat in seg.coords]
-            polyline = folium.PolyLine(
-                locations=coords,
-                color=color,
-                weight=3,
-                popup=folium.Popup(f"<b>{name}</b>", max_width=250)
-            ).add_to(m)
+        for _, row in gdf_rivers.iterrows():
+            name = row[label_col] if pd.notnull(row[label_col]) else "Unnamed"
+            color = label_color_map.get(name, "#0077b6")
 
-            # Add text label along the line
-            PolyLineTextPath(
-                polyline,
-                text=name,
-                repeat=True,
-                offset=5,
-                attributes={
-                    "fill": color,
-                    "font-weight": "bold",
-                    "font-size": "12"
-                }
-            ).add_to(m)
+            if row.geometry.type == "LineString":
+                segments = [row.geometry]
+            elif row.geometry.type == "MultiLineString":
+                segments = row.geometry.geoms
+            else:
+                continue
 
-# Add circle markers for water quality
-for key, row in latest_values.iterrows():
-    lat, lon = row["Latitude"], row["Longitude"]
-    val = row["ResultMeasureValue"]
-    color = colormap(val)
-    popup_html = f"<b>Station:</b> {row['Name']}<br><b>{selected_param}:</b> {val:.2f}<br><b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}"
-    folium.CircleMarker(
-        location=[lat, lon],
-        radius=6,
-        color=color,
-        fill=True,
-        fill_opacity=0.8,
-        popup=folium.Popup(popup_html, max_width=300),
-    ).add_to(m)
+            for seg in segments:
+                coords = [(lat, lon) for lon, lat in seg.coords]
+                polyline = folium.PolyLine(
+                    locations=coords,
+                    color=color,
+                    weight=3,
+                    popup=folium.Popup(f"<b>{name}</b>", max_width=250)
+                ).add_to(m)
 
-colormap.add_to(m)
-st_data = st_folium(m, width=1300, height=600)
+                PolyLineTextPath(
+                    polyline,
+                    text=name,
+                    repeat=True,
+                    offset=5,
+                    attributes={
+                        "fill": color,
+                        "font-weight": "bold",
+                        "font-size": "12"
+                    }
+                ).add_to(m)
+
 
 # --- Click interaction ---
 if st_data and "last_object_clicked" in st_data:
