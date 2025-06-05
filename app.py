@@ -8,63 +8,65 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from branca.colormap import linear
+from branca.colormap import StepColormap
 from streamlit_folium import st_folium
 
 # --- UI config ---
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🌊", layout="wide")
+st.image("https://i.imgur.com/Zn88ptF.png", width=150)  # Cypress Creek logo URL placeholder
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #e6f0fa;
-        color: #1b2a41;
+        background-color: #fefefe;
+        color: #222222;
         font-family: 'Segoe UI', sans-serif;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
-        color: #0f1f38 !important;
+        color: #b94a26 !important;
         font-weight: bold !important;
-        background-color: #d0e4ff !important;
+        background-color: #ffffff !important;
         padding: 0.5rem;
-        border-radius: 5px;
+        border-radius: 0;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
-        background-color: #f0f7ff !important;
-        color: #0f1f38 !important;
-        border-radius: 8px;
-        border: 1px solid #5b9bd5;
+        background-color: #fdf6f0 !important;
+        color: #3a3a3a !important;
+        border-radius: 4px;
+        border: 1px solid #d6d6d6;
     }
 
     .stButton > button {
-        background-color: #2179c4 !important;
+        background-color: #b94a26 !important;
         color: white !important;
         font-weight: bold;
-        border-radius: 6px;
+        border-radius: 4px;
+        padding: 0.4rem 1rem;
         transition: 0.2s;
     }
 
     .stButton > button:hover {
-        background-color: #5aa1e3 !important;
+        background-color: #d85f34 !important;
     }
 
     .dataframe tbody tr {
-        background-color: #f1f7ff !important;
+        background-color: #fffaf5 !important;
         color: #000000;
     }
 
     .block-container > div > h2 {
         padding: 0.6rem 1rem;
-        background-color: #d0e4ff;
-        border-left: 5px solid #2179c4;
-        border-radius: 6px;
+        background-color: #fdf4ec;
+        border-left: 5px solid #b94a26;
+        border-radius: 0;
         margin-bottom: 1rem;
-        color: #0f1f38 !important;
+        color: #b94a26 !important;
     }
 
     .stDataFrame, .stTable {
-        background-color: #f0f7ff !important;
-        color: #0f1f38 !important;
+        background-color: #fefefe !important;
+        color: #222222 !important;
     }
 
     iframe {
@@ -133,8 +135,13 @@ latest_values = (
 
 min_val = filtered_df["ResultMeasureValue"].min()
 max_val = filtered_df["ResultMeasureValue"].max()
-colormap = linear.YlGnBu_09.scale(min_val, max_val)
-colormap.caption = f"{selected_param} Range"
+colormap = StepColormap(
+    colors=['#67a9cf', '#d1e5f0', '#f7f7f7', '#fddbc7', '#ef8a62', '#b2182b'],
+    index=np.linspace(min_val, max_val, 6),
+    vmin=min_val,
+    vmax=max_val,
+    caption=f"{selected_param} Value Range"
+)
 
 basemap_option = st.sidebar.selectbox("🗺️ Basemap Style", [
     "OpenTopoMap", "Esri World Topo Map", "CartoDB Positron", "Esri Satellite Imagery"
