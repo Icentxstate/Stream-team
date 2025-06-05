@@ -55,8 +55,15 @@ gdf_safe["geometry"] = gdf["geometry"]
 
 # --- UI ---
 st.title("🗺️ Texas Coastal Monitoring Dashboard")
-selected_param = st.sidebar.selectbox("Select a Parameter", sorted(df_long["CharacteristicName"].dropna().unique()))
-filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
+selected_param = st.sidebar.multiselect("Select Parameters", sorted(df_long["CharacteristicName"].dropna().unique()), default=None).unique()))
+filtered_df = df_long[df_long["CharacteristicName"].isin(selected_param)] if selected_param else df_long.copy()
+selected_dates = st.sidebar.date_input("Select Date(s)", [])
+if not selected_dates:
+    latest_date = df_long["ActivityStartDate"].max()
+    selected_dates = [latest_date]
+
+filtered_df = filtered_df[filtered_df["ActivityStartDate"].dt.date.isin([d if isinstance(d, pd.Timestamp) else pd.to_datetime(d) for d in selected_dates])]
+
 latest_values = filtered_df.sort_values("ActivityStartDate").groupby("StationKey").tail(1).set_index("StationKey")
 
 min_val = filtered_df["ResultMeasureValue"].min()
