@@ -16,28 +16,28 @@ st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #d0f0ec;
-        color: #083c3c;
+        background-color: #fef9f1;
+        color: #4e3d26;
         font-family: 'Segoe UI', sans-serif;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
         color: #083c3c !important;
         font-weight: bold !important;
-        background-color: #a9d4c2 !important;
+        background-color: #fce5b2 !important;
         padding: 0.5rem;
         border-radius: 5px;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
-        background-color: #c2e9f7 !important;
+        background-color: #fff3da !important;
         color: #083c3c !important;
         border-radius: 8px;
         border: 1px solid #6bb9bc;
     }
 
     .stButton > button {
-        background-color: #2bb673 !important;
+        background-color: #f4a261 !important;
         color: white !important;
         font-weight: bold;
         border-radius: 6px;
@@ -45,18 +45,18 @@ st.markdown("""
     }
 
     .stButton > button:hover {
-        background-color: #39d98a !important;
+        background-color: #e76f51 !important;
     }
 
     .dataframe tbody tr {
-        background-color: #b2e2dd !important;
+        background-color: #fff6e5 !important;
         color: #000000;
     }
 
     .block-container > div > h2 {
         padding: 0.6rem 1rem;
         background-color: #a9d4c2;
-        border-left: 5px solid #2bb673;
+        border-left: 5px solid #f4a261;
         border-radius: 6px;
         margin-bottom: 1rem;
         color: #083c3c !important;
@@ -72,6 +72,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 # --- Session state ---
 if "view" not in st.session_state:
