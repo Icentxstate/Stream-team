@@ -9,10 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from branca.colormap import linear
-from folium.plugins import PolyLineTextPath
+from streamlit_folium import st_folium
 import matplotlib.colors as mcolors
 import random
-from streamlit_folium import st_folium
 
 st.set_page_config(layout="wide")
 st.title("🌊 Texas Coastal Hydrologic Monitoring Dashboard")
@@ -71,7 +70,9 @@ if not river_shp_files:
     st.warning("⚠️ No rivers shapefile found.")
     gdf_rivers = None
 else:
-    gdf_rivers = gpd.read_file(river_shp_files[0]).to_crs(epsg=4326)
+    shp_path = river_shp_files[0]
+    gdf_rivers_attrs = gpd.read_file(shp_path, ignore_geometry=True)
+    gdf_rivers = gpd.read_file(shp_path).to_crs(epsg=4326)
 
 # --- UI ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
@@ -108,52 +109,33 @@ folium.GeoJson(
     name="Texas Coastal Counties"
 ).add_to(m)
 
-# Add river lines with dynamic color and label
-if gdf_rivers is not None:
-    label_col = "Name"
-    if label_col not in gdf_rivers.columns:
-        text_columns = [col for col in gdf_rivers.columns if gdf_rivers[col].dtype == "object"]
-        label_col = text_columns[0] if text_columns else None
+# --- Add rivers (1 color per name, 1 label per river)
+if gdf_rivers is not None and "STRM_NM" in gdf_rivers.columns:
+    river_names = gdf_rivers_attrs["STRM_NM"].dropna().unique()
+    color_palette = list(mcolors.CSS4_COLORS.values())
+    random.shuffle(color_palette)
+    color_map = {name: color_palette[i % len(color_palette)] for i, name in enumerate(river_names)}
 
-    if label_col is None:
-        st.warning("⚠️ No valid label column found in rivers shapefile.")
-    else:
-        unique_labels = gdf_rivers[label_col].dropna().unique()
-        color_palette = list(mcolors.CSS4_COLORS.values())
-        random.shuffle(color_palette)
-        label_color_map = {name: color_palette[i % len(color_palette)] for i, name in enumerate(unique_labels)}
+    for _, row in gdf_rivers.iterrows():
+        name = row["STRM_NM"] if pd.notnull(row["STRM_NM"]) else "Unnamed River"
+        color = color_map.get(name, "#0077b6")
 
-        for _, row in gdf_rivers.iterrows():
-            name = row[label_col] if pd.notnull(row[label_col]) else "Unnamed"
-            color = label_color_map.get(name, "#0077b6")
+        if row.geometry.type == "LineString":
+            segments = [row.geometry]
+        elif row.geometry.type == "MultiLineString":
+            segments = row.geometry.geoms
+        else:
+            continue
 
-            if row.geometry.type == "LineString":
-                segments = [row.geometry]
-            elif row.geometry.type == "MultiLineString":
-                segments = row.geometry.geoms
-            else:
-                continue
-
-            for seg in segments:
-                coords = [(lat, lon) for lon, lat in seg.coords]
-                polyline = folium.PolyLine(
-                    locations=coords,
-                    color=color,
-                    weight=3,
-                    popup=folium.Popup(f"<b>{name}</b>", max_width=250)
-                ).add_to(m)
-
-                PolyLineTextPath(
-                    polyline,
-                    text=name,
-                    repeat=True,
-                    offset=5,
-                    attributes={
-                        "fill": color,
-                        "font-weight": "bold",
-                        "font-size": "12"
-                    }
-                ).add_to(m)
+        for seg in segments:
+            coords = [(lat, lon) for lon, lat in seg.coords]
+            folium.PolyLine(
+                locations=coords,
+                color=color,
+                weight=3,
+                tooltip=name,
+                popup=folium.Popup(f"<b>{name}</b>", max_width=250)
+            ).add_to(m)
 
 # Add circle markers for water quality
 for key, row in latest_values.iterrows():
