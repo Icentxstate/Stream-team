@@ -80,9 +80,7 @@ for key, row in latest_values.iterrows():
     popup_content = f"""
     <b>Station:</b> {row['Name']}<br>
     <b>{selected_param}:</b> {val:.2f}<br>
-    <b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}<br><br>
-    🔹 <b>Single Click</b>: Zoom to this station<br>
-    🔹 <b>Double Click</b>: Show detailed plots below the map
+    <b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}
     """
     folium.CircleMarker(
         location=[lat, lon],
