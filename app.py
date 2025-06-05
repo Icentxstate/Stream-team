@@ -1,4 +1,4 @@
-# ✅ Streamlit App: Stable Map with Popup & Detail View (No JS)
+# ✅ Streamlit App: Stable Map with Popup & Detail View (No JS) — Fixed GeoJSON Error
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
@@ -49,6 +49,10 @@ shp_files = glob.glob(os.path.join(shp_folder, "**", "*.shp"), recursive=True)
 gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
 gdf_bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
 
+# --- Fix GeoJson serialization error ---
+gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
+gdf_safe["geometry"] = gdf["geometry"]
+
 # --- UI ---
 st.title("🗺️ Texas Coastal Monitoring Dashboard")
 selected_param = st.sidebar.selectbox("Select a Parameter", sorted(df_long["CharacteristicName"].dropna().unique()))
@@ -63,7 +67,7 @@ colormap = linear.RdYlBu_11.scale(min_val, max_val)
 m = folium.Map(location=[(gdf_bounds[1]+gdf_bounds[3])/2, (gdf_bounds[0]+gdf_bounds[2])/2], zoom_start=7)
 m.fit_bounds([[gdf_bounds[1], gdf_bounds[0]], [gdf_bounds[3], gdf_bounds[2]]])
 
-folium.GeoJson(gdf, style_function=lambda x: {
+folium.GeoJson(gdf_safe, style_function=lambda x: {
     "fillColor": "#0b5394",
     "color": "#0b5394",
     "weight": 2,
