@@ -87,11 +87,10 @@ map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
 with st.spinner("Rendering interactive map..."):
     m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
-    # Add counties (safely)
+    # Add counties safely
     if gdf is not None:
         gdf_clean = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
         gdf_clean["geometry"] = gdf["geometry"]
-
         folium.GeoJson(
             gdf_clean,
             name="Coastal Counties",
@@ -103,28 +102,24 @@ with st.spinner("Rendering interactive map..."):
             },
         ).add_to(m)
 
-    # Add rivers (top 20)
+    # Add rivers
     if gdf_rivers is not None and "STRM_NM" in gdf_rivers.columns:
         top_rivers = gdf_rivers_attrs["STRM_NM"].value_counts().nlargest(20).index
         gdf_rivers = gdf_rivers[gdf_rivers["STRM_NM"].isin(top_rivers)]
-
         color_palette = list(mcolors.CSS4_COLORS.values())
         random.shuffle(color_palette)
         river_colors = {name: color_palette[i % len(color_palette)] for i, name in enumerate(top_rivers)}
-
         river_group = folium.FeatureGroup(name="Major Rivers", show=True).add_to(m)
 
         for _, row in gdf_rivers.iterrows():
             name = row["STRM_NM"] if pd.notnull(row["STRM_NM"]) else "Unnamed River"
             color = river_colors.get(name, "#0077b6")
-
             if row.geometry.type == "LineString":
                 segments = [row.geometry]
             elif row.geometry.type == "MultiLineString":
                 segments = row.geometry.geoms
             else:
                 continue
-
             for seg in segments:
                 coords = [(lat, lon) for lon, lat in seg.coords]
                 folium.PolyLine(
@@ -137,7 +132,6 @@ with st.spinner("Rendering interactive map..."):
 
     # Add stations
     station_group = folium.FeatureGroup(name="WQ Stations", show=True).add_to(m)
-
     for key, row in latest_values.iterrows():
         lat, lon = row["Latitude"], row["Longitude"]
         val = row["ResultMeasureValue"]
@@ -156,43 +150,35 @@ with st.spinner("Rendering interactive map..."):
     folium.LayerControl(collapsed=False).add_to(m)
     st_data = st_folium(m, width=1300, height=600)
 
-# --- Click interaction ---
+# --- Click interaction (summary only) ---
 if st_data and "last_object_clicked" in st_data:
     lat = st_data["last_object_clicked"].get("lat")
     lon = st_data["last_object_clicked"].get("lng")
     if lat and lon:
         st.markdown("---")
-        st.markdown("### 🧪 Selected Station")
+        st.markdown("### 📋 Station Summary")
         coords = f"{lat},{lon}"
         st.write(f"📍 Coordinates: `{lat:.5f}, {lon:.5f}`")
-        ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
-        subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
-
-        st.markdown("**📌 Select Parameters for Time Series**")
-        selected = st.multiselect("📉 Choose parameters", options=subparams, default=subparams[:1])
-
-        if selected:
-            plot_df = (
-                ts_df[ts_df["CharacteristicName"].isin(selected)]
-                .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
-                .dropna(how='all')
-            )
-            st.subheader("📈 Time Series (Dot Plot)")
-            fig, ax = plt.subplots(figsize=(10, 5))
-            for col in plot_df.columns:
-                ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
-            ax.set_ylabel("Value")
-            ax.set_xlabel("Date")
-            ax.legend()
-            st.pyplot(fig)
-
-            st.markdown("📊 **Statistical Summary**")
-            st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
-
-            st.markdown("🧮 **Correlation Heatmap**")
-            corr = plot_df.corr()
-            fig2, ax2 = plt.subplots(figsize=(8, 6))
-            sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax2)
-            st.pyplot(fig2)
+        ts_df = df_long[df_long["StationKey"] == coords]
+        if ts_df.empty:
+            st.warning("No data found for this station.")
         else:
-            st.info("Please select at least one parameter.")
+            grouped = ts_df.groupby("CharacteristicName")
+            summaries = []
+            for param, group in grouped:
+                group = group.sort_values("ActivityStartDate")
+                start_date = group["ActivityStartDate"].min()
+                end_date = group["ActivityStartDate"].max()
+                mean_val = group["ResultMeasureValue"].mean()
+                last_val = group.iloc[-1]["ResultMeasureValue"]
+                last_date = group.iloc[-1]["ActivityStartDate"]
+                summaries.append({
+                    "Parameter": param,
+                    "Start Date": start_date.date(),
+                    "End Date": end_date.date(),
+                    "Mean Value": round(mean_val, 2),
+                    "Last Value": round(last_val, 2),
+                    "Last Date": last_date.date()
+                })
+            summary_df = pd.DataFrame(summaries)
+            st.dataframe(summary_df)
