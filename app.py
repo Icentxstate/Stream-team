@@ -18,8 +18,6 @@ st.title("🌊 Texas Coastal Hydrologic Monitoring Dashboard")
 csv_path = "WQ.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
-river_zip = "selected_major_rivers_shp.zip"
-river_folder = "rivers_extracted"
 
 # --- Load CSV ---
 try:
@@ -58,18 +56,6 @@ gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
 gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
 gdf_safe["geometry"] = gdf["geometry"]
 
-# --- Load River Shapefile ---
-if not os.path.exists(river_folder):
-    with zipfile.ZipFile(river_zip, 'r') as zip_ref:
-        zip_ref.extractall(river_folder)
-
-river_shp_files = glob.glob(os.path.join(river_folder, "**", "*.shp"), recursive=True)
-if not river_shp_files:
-    st.error("❌ No river shapefile found.")
-    st.stop()
-
-gdf_rivers = gpd.read_file(river_shp_files[0]).to_crs(epsg=4326)
-
 # --- UI ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
 selected_param = st.selectbox("📌 Select a Water Quality Parameter", available_params)
@@ -88,12 +74,47 @@ max_val = filtered_df["ResultMeasureValue"].max()
 colormap = linear.RdYlBu_11.scale(min_val, max_val)
 colormap.caption = f"{selected_param} Value Range"
 
-# --- Map ---
+# --- Basemap Selector ---
 st.subheader(f"🗺️ Latest Measurements of {selected_param}")
-map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
-m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
+basemap_option = st.selectbox(
+    "🗺️ Select Basemap Style",
+    options=[
+        "OpenTopoMap",
+        "Esri World Topo Map",
+        "CartoDB Positron",
+        "Esri Satellite Imagery"
+    ]
+)
 
-# Add county shapefile
+basemap_tiles = {
+    "OpenTopoMap": {
+        "tiles": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        "attr": "OpenTopoMap"
+    },
+    "Esri World Topo Map": {
+        "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+        "attr": "Esri World Topo Map"
+    },
+    "CartoDB Positron": {
+        "tiles": "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        "attr": "CartoDB Positron"
+    },
+    "Esri Satellite Imagery": {
+        "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "attr": "Esri World Imagery"
+    }
+}
+
+# --- Map ---
+map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
+m = folium.Map(
+    location=map_center,
+    zoom_start=7,
+    tiles=basemap_tiles[basemap_option]["tiles"],
+    attr=basemap_tiles[basemap_option]["attr"]
+)
+
+# Add counties
 folium.GeoJson(
     gdf_safe,
     style_function=lambda x: {
@@ -104,27 +125,6 @@ folium.GeoJson(
     },
     name="Texas Coastal Counties"
 ).add_to(m)
-
-# Add river shapefile
-folium.GeoJson(
-    gdf_rivers,
-    style_function=lambda x: {
-        "color": "blue",
-        "weight": 2,
-    },
-    name="Major Rivers"
-).add_to(m)
-
-# Add river name labels
-if "NAME" in gdf_rivers.columns:
-    for _, row in gdf_rivers.iterrows():
-        centroid = row.geometry.centroid
-        folium.Marker(
-            location=[centroid.y, centroid.x],
-            icon=folium.DivIcon(
-                html=f'<div style="font-size: 10px; color: blue;"><b>{row["NAME"]}</b></div>'
-            )
-        ).add_to(m)
 
 # Add water quality circles
 for key, row in latest_values.iterrows():
