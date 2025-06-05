@@ -11,30 +11,30 @@ import seaborn as sns
 from branca.colormap import linear
 from streamlit_folium import st_folium
 
-# --- صفحه با قالب تیره و هماهنگ ---
+# --- UI config ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #12181b;
-        color: #d0d0d0;
+        background-color: #2f333b;
+        color: #e2e2e2;
         font-family: 'Segoe UI', sans-serif;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
-        color: #f1f3f4 !important;
+        color: #f5f5f5 !important;
         font-weight: bold !important;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
-        background-color: #1f2a2e !important;
-        color: #e0e0e0 !important;
+        background-color: #3a3f47 !important;
+        color: #f0f0f0 !important;
         border-radius: 8px;
-        border: 1px solid #3a4a4f;
+        border: 1px solid #5a5f67;
     }
 
     .stButton > button {
-        background-color: #2563eb !important;
+        background-color: #3b82f6 !important;
         color: white !important;
         font-weight: bold;
         border-radius: 6px;
@@ -42,28 +42,28 @@ st.markdown("""
     }
 
     .stButton > button:hover {
-        background-color: #3b82f6 !important;
+        background-color: #60a5fa !important;
     }
 
     .css-6qob1r, .css-1d391kg {
-        background-color: #1c2428 !important;
+        background-color: #3a3f47 !important;
     }
 
     .dataframe tbody tr {
-        background-color: #1e2a30 !important;
+        background-color: #363b44 !important;
         color: #ffffff;
     }
 
     .block-container > div > h2 {
         padding: 0.6rem 1rem;
-        background-color: #1e2a30;
-        border-left: 5px solid #2563eb;
+        background-color: #3a3f47;
+        border-left: 5px solid #3b82f6;
         border-radius: 6px;
         margin-bottom: 1rem;
     }
 
     .stDataFrame, .stTable {
-        background-color: #1e2a30 !important;
+        background-color: #3a3f47 !important;
         color: #f0f0f0 !important;
     }
 
@@ -73,18 +73,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- وضعیت‌ها ---
+# --- Session state ---
 if "view" not in st.session_state:
     st.session_state.view = "map"
 if "selected_point" not in st.session_state:
     st.session_state.selected_point = None
 
-# --- مسیرها ---
+# --- Paths ---
 csv_path = "WQ.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
 
-# --- بارگذاری CSV ---
+# --- Load CSV ---
 try:
     df = pd.read_csv(csv_path, low_memory=False)
     df = df.dropna(subset=["Latitude", "Longitude"])
@@ -93,7 +93,7 @@ except Exception as e:
     st.error(f"❌ Failed to load CSV: {e}")
     st.stop()
 
-# --- تبدیل Long Format ---
+# --- Long Format ---
 exclude_cols = ["Name", "Description", "Basin", "County", "Latitude", "Longitude", "TCEQ Stream Segment", "Sample Date"]
 value_cols = [col for col in df.columns if col not in exclude_cols]
 df_long = df.melt(
@@ -107,7 +107,7 @@ df_long["ResultMeasureValue"] = pd.to_numeric(df_long["ResultMeasureValue"], err
 df_long["StationKey"] = df_long["Latitude"].astype(str) + "," + df_long["Longitude"].astype(str)
 df_long = df_long.dropna(subset=["ActivityStartDate", "ResultMeasureValue", "CharacteristicName"])
 
-# --- بارگذاری شیپ‌فایل ---
+# --- Load Shapefile ---
 if not os.path.exists(shp_folder):
     with zipfile.ZipFile(shp_zip, 'r') as zip_ref:
         zip_ref.extractall(shp_folder)
@@ -158,10 +158,9 @@ basemap_tiles = {
     }
 }
 
-# --- نمایش نقشه ---
+# --- Main View ---
 if st.session_state.view == "map":
     st.title("🌍 Texas Coastal Monitoring Map")
-
     m = folium.Map(
         location=[(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2],
         tiles=basemap_tiles[basemap_option]["tiles"],
@@ -207,7 +206,6 @@ if st.session_state.view == "map":
             st.session_state.view = "details"
             st.rerun()
 
-# --- تحلیل ایستگاه ---
 elif st.session_state.view == "details":
     coords = st.session_state.selected_point
     lat, lon = map(float, coords.split(","))
