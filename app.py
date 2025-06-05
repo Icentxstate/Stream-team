@@ -11,32 +11,58 @@ import seaborn as sns
 from branca.colormap import linear
 from streamlit_folium import st_folium
 
-# --- صفحه تیره و استایل حرفه‌ای ---
+# --- UI config ---
 st.set_page_config(layout="wide")
 st.markdown("""
     <style>
-    body {
-        background-color: #111;
-        color: #ddd;
+    body, .stApp {
+        background-color: #111111;
+        color: #e0e0e0;
         font-family: 'Segoe UI', sans-serif;
     }
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
+
+    h1, h2, h3, h4, label, .stMarkdown, .stText, .css-10trblm, .css-1v3fvcr {
+        color: #ffffff !important;
+        font-weight: bold !important;
     }
-    .stApp {
-        background-color: #111;
+
+    .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm, .stButton > button {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+        border-radius: 8px;
+        border: 1px solid #444444;
     }
-    h1, h2, h3, h4, .markdown-text-container {
-        color: #ffffff;
-    }
-    .css-1rs6os.edgvbvh3, .stButton > button {
+
+    .stButton > button {
         background-color: #0b5394 !important;
         color: white !important;
-        border-radius: 8px;
+        font-weight: bold;
+        border: none;
     }
+
     .stButton > button:hover {
         background-color: #124c8c !important;
+    }
+
+    .css-6qob1r, .css-1d391kg {
+        background-color: #1a1a1a !important;
+    }
+
+    .dataframe tbody tr {
+        background-color: #222222 !important;
+        color: #ffffff;
+    }
+
+    .block-container > div > h2 {
+        padding: 0.5rem;
+        background-color: #222222;
+        border-left: 5px solid #0b5394;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    iframe {
+        border: none;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -61,7 +87,7 @@ except Exception as e:
     st.error(f"❌ Failed to load CSV: {e}")
     st.stop()
 
-# --- Melt format ---
+# --- Melt ---
 exclude_cols = ["Name", "Description", "Basin", "County", "Latitude", "Longitude", "TCEQ Stream Segment", "Sample Date"]
 value_cols = [col for col in df.columns if col not in exclude_cols]
 df_long = df.melt(
