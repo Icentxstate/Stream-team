@@ -16,28 +16,28 @@ st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #fef9f1;
-        color: #4e3d26;
+        background-color: #e0f7f5;
+        color: #023535;
         font-family: 'Segoe UI', sans-serif;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
-        color: #083c3c !important;
+        color: #022b2b !important;
         font-weight: bold !important;
-        background-color: #fce5b2 !important;
+        background-color: #cbf3e3 !important;
         padding: 0.5rem;
         border-radius: 5px;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
-        background-color: #fff3da !important;
-        color: #083c3c !important;
+        background-color: #f0fbf9 !important;
+        color: #023535 !important;
         border-radius: 8px;
-        border: 1px solid #6bb9bc;
+        border: 1px solid #48b9a4;
     }
 
     .stButton > button {
-        background-color: #f4a261 !important;
+        background-color: #136f63 !important;
         color: white !important;
         font-weight: bold;
         border-radius: 6px;
@@ -45,26 +45,26 @@ st.markdown("""
     }
 
     .stButton > button:hover {
-        background-color: #e76f51 !important;
+        background-color: #29a796 !important;
     }
 
     .dataframe tbody tr {
-        background-color: #fff6e5 !important;
+        background-color: #e8fff8 !important;
         color: #000000;
     }
 
     .block-container > div > h2 {
         padding: 0.6rem 1rem;
-        background-color: #a9d4c2;
-        border-left: 5px solid #f4a261;
+        background-color: #a0ded5;
+        border-left: 5px solid #136f63;
         border-radius: 6px;
         margin-bottom: 1rem;
-        color: #083c3c !important;
+        color: #023535 !important;
     }
 
     .stDataFrame, .stTable {
-        background-color: #c2e9f7 !important;
-        color: #083c3c !important;
+        background-color: #dcfdf9 !important;
+        color: #023535 !important;
     }
 
     iframe {
