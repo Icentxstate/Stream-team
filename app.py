@@ -10,63 +10,46 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from branca.colormap import StepColormap
 from streamlit_folium import st_folium
-import base64
-
-# --- Embed local sidebar image as base64 ---
-def get_image_as_base64(file_path):
-    with open(file_path, "rb") as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-img_base64 = get_image_as_base64("PIC.jpg")
 
 # --- UI config ---
 st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🌊", layout="wide")
-st.markdown(f"""
+st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=PT+Serif&display=swap');
 
-    body, .stApp {{
+    body, .stApp {
         background-color: #ffffff;
         color: #222222;
         font-family: 'PT Serif', 'Georgia', serif;
-    }}
+    }
 
-    .stSidebar {{
-        background-image: url("data:image/png;base64,{img_base64}");
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-position: center top;
-        background-attachment: scroll;
-    }}
-
-    .stSidebar > div:first-child {{
-        background-color: rgba(255, 255, 255, 0.88);
+    .stSidebar > div:first-child {
+        background-color: rgba(255, 255, 255, 0.96);
         padding: 1rem;
         border-radius: 0;
-    }}
+    }
 
-    .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar h4, .stSidebar label {{
+    .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar h4, .stSidebar label {
         color: #000000 !important;
-    }}
+    }
 
-    h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {{
+    h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
         color: #0c6e72 !important;
         font-weight: bold !important;
         background-color: #ffffff !important;
         padding: 0.5rem;
         border-radius: 0;
-    }}
+    }
 
-    .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {{
+    .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
         background-color: #f8fdfd !important;
         color: #3a3a3a !important;
         border-radius: 4px;
         border: 1px solid #cfd7d7;
         font-family: 'PT Serif', 'Georgia', serif;
-    }}
+    }
 
-    .stButton > button {{
+    .stButton > button {
         background-color: #cc4b00 !important;
         color: white !important;
         font-weight: bold;
@@ -74,39 +57,37 @@ st.markdown(f"""
         padding: 0.4rem 1rem;
         transition: 0.2s;
         font-family: 'PT Serif', 'Georgia', serif;
-    }}
+    }
 
-    .stButton > button:hover {{
+    .stButton > button:hover {
         background-color: #e76f00 !important;
-    }}
+    }
 
-    .dataframe tbody tr {{
+    .dataframe tbody tr {
         background-color: #fef9f3 !important;
         color: #000000;
-    }}
+    }
 
-    .block-container > div > h2 {{
+    .block-container > div > h2 {
         padding: 0.6rem 1rem;
         background-color: #eef8f8;
         border-left: 5px solid #0c6e72;
         border-radius: 0;
         margin-bottom: 1rem;
         color: #cc4b00 !important;
-    }}
+    }
 
-    .stDataFrame, .stTable {{
+    .stDataFrame, .stTable {
         background-color: #ffffff !important;
         color: #222222 !important;
         font-family: 'PT Serif', 'Georgia', serif;
-    }}
+    }
 
-    iframe {{
+    iframe {
         border: none;
-    }}
+    }
     </style>
 """, unsafe_allow_html=True)
-st.image("https://www.cypresscreekproject.net/uploads/2/3/1/3/23131170/published/logo-ccrwp_1.png", width=180)
-
 
 
 # --- Session state ---
