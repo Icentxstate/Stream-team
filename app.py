@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
@@ -10,6 +9,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from branca.colormap import linear
+from folium.plugins import PolyLineTextPath
+import matplotlib.colors as mcolors
+import random
 from streamlit_folium import st_folium
 
 st.set_page_config(layout="wide")
@@ -19,6 +21,8 @@ st.title("🌊 Texas Coastal Hydrologic Monitoring Dashboard")
 csv_path = "WQ.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
+rivers_zip = "selected_major_rivers_shp.zip"
+rivers_folder = "rivers_extracted"
 
 # --- Load CSV ---
 try:
@@ -43,19 +47,31 @@ df_long["ResultMeasureValue"] = pd.to_numeric(df_long["ResultMeasureValue"], err
 df_long["StationKey"] = df_long["Latitude"].astype(str) + "," + df_long["Longitude"].astype(str)
 df_long = df_long.dropna(subset=["ActivityStartDate", "ResultMeasureValue", "CharacteristicName"])
 
-# --- Load shapefile ---
+# --- Load shapefile (counties) ---
 if not os.path.exists(shp_folder):
     with zipfile.ZipFile(shp_zip, 'r') as zip_ref:
         zip_ref.extractall(shp_folder)
 
 shp_files = glob.glob(os.path.join(shp_folder, "**", "*.shp"), recursive=True)
 if not shp_files:
-    st.error("❌ No shapefile found.")
+    st.error("❌ No county shapefile found.")
     st.stop()
 
 gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
 gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
 gdf_safe["geometry"] = gdf["geometry"]
+
+# --- Load rivers shapefile ---
+if not os.path.exists(rivers_folder):
+    with zipfile.ZipFile(rivers_zip, 'r') as zip_ref:
+        zip_ref.extractall(rivers_folder)
+
+river_shp_files = glob.glob(os.path.join(rivers_folder, "**", "*.shp"), recursive=True)
+if not river_shp_files:
+    st.warning("⚠️ No rivers shapefile found.")
+    gdf_rivers = None
+else:
+    gdf_rivers = gpd.read_file(river_shp_files[0]).to_crs(epsg=4326)
 
 # --- UI ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
@@ -80,7 +96,7 @@ st.subheader(f"🗺️ Latest Measurements of {selected_param}")
 map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
 m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
-# Add shapefile
+# Add county shapefile
 folium.GeoJson(
     gdf_safe,
     style_function=lambda x: {
@@ -92,7 +108,47 @@ folium.GeoJson(
     name="Texas Coastal Counties"
 ).add_to(m)
 
-# Add markers with color scale
+# Add river lines with labels
+if gdf_rivers is not None and "Name" in gdf_rivers.columns:
+    unique_rivers = gdf_rivers["Name"].dropna().unique()
+    color_palette = list(mcolors.CSS4_COLORS.values())
+    random.shuffle(color_palette)
+    river_color_map = {name: color_palette[i % len(color_palette)] for i, name in enumerate(unique_rivers)}
+
+    for _, row in gdf_rivers.iterrows():
+        name = row["Name"] if pd.notnull(row["Name"]) else "Unnamed River"
+        color = river_color_map.get(name, "#0077b6")
+
+        if row.geometry.type == "LineString":
+            segments = [row.geometry]
+        elif row.geometry.type == "MultiLineString":
+            segments = row.geometry.geoms
+        else:
+            continue
+
+        for seg in segments:
+            coords = [(lat, lon) for lon, lat in seg.coords]
+            polyline = folium.PolyLine(
+                locations=coords,
+                color=color,
+                weight=3,
+                popup=folium.Popup(f"<b>{name}</b>", max_width=250)
+            ).add_to(m)
+
+            # Add text label along the line
+            PolyLineTextPath(
+                polyline,
+                text=name,
+                repeat=True,
+                offset=5,
+                attributes={
+                    "fill": color,
+                    "font-weight": "bold",
+                    "font-size": "12"
+                }
+            ).add_to(m)
+
+# Add circle markers for water quality
 for key, row in latest_values.iterrows():
     lat, lon = row["Latitude"], row["Longitude"]
     val = row["ResultMeasureValue"]
@@ -150,4 +206,3 @@ if st_data and "last_object_clicked" in st_data:
             st.pyplot(fig2)
         else:
             st.info("Please select at least one parameter.")
-
