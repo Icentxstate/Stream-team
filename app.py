@@ -78,10 +78,11 @@ for key, row in latest_values.iterrows():
     lat, lon = row["Latitude"], row["Longitude"]
     val = row["ResultMeasureValue"]
     popup_content = f"""
-    Station: {row['Name']}<br>
-    {selected_param}: {val:.2f}<br>
-    Date: {row['ActivityStartDate'].strftime('%Y-%m-%d')}<br>
-    Click map marker to load more info below.
+    <b>Station:</b> {row['Name']}<br>
+    <b>{selected_param}:</b> {val:.2f}<br>
+    <b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}<br><br>
+    🔹 <b>Single Click</b>: Zoom to this station<br>
+    🔹 <b>Double Click</b>: Show detailed plots below the map
     """
     folium.CircleMarker(
         location=[lat, lon],
