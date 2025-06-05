@@ -11,7 +11,35 @@ import seaborn as sns
 from branca.colormap import linear
 from streamlit_folium import st_folium
 
+# --- صفحه تیره و استایل حرفه‌ای ---
 st.set_page_config(layout="wide")
+st.markdown("""
+    <style>
+    body {
+        background-color: #111;
+        color: #ddd;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    .stApp {
+        background-color: #111;
+    }
+    h1, h2, h3, h4, .markdown-text-container {
+        color: #ffffff;
+    }
+    .css-1rs6os.edgvbvh3, .stButton > button {
+        background-color: #0b5394 !important;
+        color: white !important;
+        border-radius: 8px;
+    }
+    .stButton > button:hover {
+        background-color: #124c8c !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- Session state ---
 if "view" not in st.session_state:
@@ -33,7 +61,7 @@ except Exception as e:
     st.error(f"❌ Failed to load CSV: {e}")
     st.stop()
 
-# --- Melt ---
+# --- Melt format ---
 exclude_cols = ["Name", "Description", "Basin", "County", "Latitude", "Longitude", "TCEQ Stream Segment", "Sample Date"]
 value_cols = [col for col in df.columns if col not in exclude_cols]
 df_long = df.melt(
@@ -62,9 +90,9 @@ gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].cop
 gdf_safe["geometry"] = gdf["geometry"]
 bounds = gdf.total_bounds
 
-# --- UI ---
+# --- Sidebar Inputs ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
-selected_param = st.sidebar.selectbox("📌 Select a Parameter", available_params)
+selected_param = st.sidebar.selectbox("📌 Select Parameter", available_params)
 filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
 latest_values = (
     filtered_df.sort_values("ActivityStartDate")
@@ -73,17 +101,14 @@ latest_values = (
     .set_index("StationKey")
 )
 
-# --- Colormap ---
 min_val = filtered_df["ResultMeasureValue"].min()
 max_val = filtered_df["ResultMeasureValue"].max()
 colormap = linear.RdYlBu_11.scale(min_val, max_val)
 colormap.caption = f"{selected_param} Range"
 
-# --- Basemap selector ---
-basemap_option = st.sidebar.selectbox(
-    "🗺️ Basemap Style",
-    ["OpenTopoMap", "Esri World Topo Map", "CartoDB Positron", "Esri Satellite Imagery"]
-)
+basemap_option = st.sidebar.selectbox("🗺️ Basemap Style", [
+    "OpenTopoMap", "Esri World Topo Map", "CartoDB Positron", "Esri Satellite Imagery"
+])
 basemap_tiles = {
     "OpenTopoMap": {
         "tiles": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
@@ -103,16 +128,9 @@ basemap_tiles = {
     }
 }
 
-# --- VIEW 1: MAP ---
+# --- VIEW 1: Map ---
 if st.session_state.view == "map":
     st.title("🌍 Texas Coastal Monitoring Map")
-
-    st.markdown("""
-        <style>
-        .block-container { padding-top: 0rem; padding-bottom: 0rem; }
-        iframe { border: none; }
-        </style>
-        """, unsafe_allow_html=True)
 
     m = folium.Map(
         location=[(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2],
@@ -148,7 +166,7 @@ if st.session_state.view == "map":
     colormap.add_to(m)
     folium.LayerControl().add_to(m)
 
-    st_data = st_folium(m, width=1400, height=650)
+    st_data = st_folium(m, width=None, height=600)
 
     if st_data and st_data.get("last_object_clicked"):
         clicked = st_data["last_object_clicked"]
@@ -157,22 +175,24 @@ if st.session_state.view == "map":
         if lat is not None and lon is not None:
             st.session_state.selected_point = f"{lat},{lon}"
             st.session_state.view = "details"
-            st.experimental_rerun()
+            st.rerun()
 
-# --- VIEW 2: DETAILS ---
+# --- VIEW 2: Details ---
 elif st.session_state.view == "details":
     coords = st.session_state.selected_point
     lat, lon = map(float, coords.split(","))
     st.title("📊 Station Analysis")
     st.write(f"📍 Coordinates: {lat:.5f}, {lon:.5f}")
 
-    if st.button("🔙 Back to Map"):
-        st.session_state.view = "map"
-        st.experimental_rerun()
+    with st.form("back_form"):
+        submitted = st.form_submit_button("🔙 Back to Map")
+        if submitted:
+            st.session_state.view = "map"
+            st.rerun()
 
     ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
     subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
-    selected = st.multiselect("📉 Select parameters for time series", subparams, default=subparams[:1])
+    selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
     if selected:
         plot_df = (
