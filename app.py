@@ -22,15 +22,18 @@ st.markdown("""
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
-        color: #e6fff8 !important;
+        color: #083c3c !important;
         font-weight: bold !important;
+        background-color: #a9d4c2 !important;
+        padding: 0.5rem;
+        border-radius: 5px;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
-        background-color: #254d4a !important;
-        color: #e0fff7 !important;
+        background-color: #c2e9f7 !important;
+        color: #083c3c !important;
         border-radius: 8px;
-        border: 1px solid #3e736e;
+        border: 1px solid #6bb9bc;
     }
 
     .stButton > button {
@@ -45,26 +48,23 @@ st.markdown("""
         background-color: #39d98a !important;
     }
 
-    .css-6qob1r, .css-1d391kg {
-        background-color: #2a4c44 !important;
-    }
-
     .dataframe tbody tr {
-        background-color: #2e5e53 !important;
-        color: #ffffff;
+        background-color: #b2e2dd !important;
+        color: #000000;
     }
 
     .block-container > div > h2 {
         padding: 0.6rem 1rem;
-        background-color: #2f5c52;
+        background-color: #a9d4c2;
         border-left: 5px solid #2bb673;
         border-radius: 6px;
         margin-bottom: 1rem;
+        color: #083c3c !important;
     }
 
     .stDataFrame, .stTable {
-        background-color: #2a4c44 !important;
-        color: #f0f0f0 !important;
+        background-color: #c2e9f7 !important;
+        color: #083c3c !important;
     }
 
     iframe {
