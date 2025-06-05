@@ -18,7 +18,7 @@ def get_image_as_base64(file_path):
         data = f.read()
     return base64.b64encode(data).decode()
 
-img_base64 = get_image_as_base64("pic.png")
+img_base64 = get_image_as_base64("PIC.jpg")
 
 # --- UI config ---
 st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🌊", layout="wide")
