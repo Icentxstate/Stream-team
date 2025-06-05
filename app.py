@@ -1,4 +1,4 @@
-import streamlit as st
+mport streamlit as st
 import pandas as pd
 import geopandas as gpd
 import folium
@@ -13,13 +13,30 @@ from streamlit_folium import st_folium
 
 # --- UI config ---
 st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🌊", layout="wide")
-st.image("https://www.cypresscreekproject.net/uploads/2/3/1/3/23131170/published/logo-ccrwp_1.png", width=180)  # Cypress Creek logo URL placeholder
 st.markdown("""
     <style>
     body, .stApp {
         background-color: #ffffff;
         color: #222222;
         font-family: 'Segoe UI', sans-serif;
+    }
+
+    .css-1544g2n { /* sidebar */
+        background-image: url("https://www.cypresscreekproject.net/uploads/2/3/1/3/23131170/published/ccrwp-cover.jpg");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center top;
+        opacity: 0.18;
+    }
+
+    .stSidebar > div:first-child {
+        background-color: rgba(0, 0, 0, 0.6);
+        padding: 1rem;
+        border-radius: 0;
+    }
+
+    .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar h4, .stSidebar label {
+        color: #ffffff !important;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
@@ -61,11 +78,11 @@ st.markdown("""
         border-left: 5px solid #138d75;
         border-radius: 0;
         margin-bottom: 1rem;
-        color: #b94a26 !important;
+        color: #d35400 !important;
     }
 
     .stDataFrame, .stTable {
-        background-color: #fefefe !important;
+        background-color: #ffffff !important;
         color: #222222 !important;
     }
 
@@ -74,6 +91,8 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+st.image("https://www.cypresscreekproject.net/uploads/2/3/1/3/23131170/published/logo-ccrwp_1.png", width=180)
+
 
 # --- Session state ---
 if "view" not in st.session_state:
