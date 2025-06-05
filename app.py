@@ -87,10 +87,13 @@ map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
 with st.spinner("Rendering interactive map..."):
     m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
-    # Add counties
+    # Add counties (safely)
     if gdf is not None:
+        gdf_clean = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
+        gdf_clean["geometry"] = gdf["geometry"]
+
         folium.GeoJson(
-            gdf,
+            gdf_clean,
             name="Coastal Counties",
             style_function=lambda x: {
                 "fillColor": "#0b5394",
