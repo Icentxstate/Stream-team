@@ -7,3 +7,4 @@ seaborn
 geopandas
 folium
 streamlit-folium
+streamlit-js-eval
