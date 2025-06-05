@@ -16,28 +16,28 @@ st.set_page_config(layout="wide")
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #e0f7f5;
-        color: #023535;
+        background-color: #e6f0fa;
+        color: #1b2a41;
         font-family: 'Segoe UI', sans-serif;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
-        color: #022b2b !important;
+        color: #0f1f38 !important;
         font-weight: bold !important;
-        background-color: #cbf3e3 !important;
+        background-color: #d0e4ff !important;
         padding: 0.5rem;
         border-radius: 5px;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
-        background-color: #f0fbf9 !important;
-        color: #023535 !important;
+        background-color: #f0f7ff !important;
+        color: #0f1f38 !important;
         border-radius: 8px;
-        border: 1px solid #48b9a4;
+        border: 1px solid #5b9bd5;
     }
 
     .stButton > button {
-        background-color: #136f63 !important;
+        background-color: #2179c4 !important;
         color: white !important;
         font-weight: bold;
         border-radius: 6px;
@@ -45,26 +45,26 @@ st.markdown("""
     }
 
     .stButton > button:hover {
-        background-color: #29a796 !important;
+        background-color: #5aa1e3 !important;
     }
 
     .dataframe tbody tr {
-        background-color: #e8fff8 !important;
+        background-color: #f1f7ff !important;
         color: #000000;
     }
 
     .block-container > div > h2 {
         padding: 0.6rem 1rem;
-        background-color: #a0ded5;
-        border-left: 5px solid #136f63;
+        background-color: #d0e4ff;
+        border-left: 5px solid #2179c4;
         border-radius: 6px;
         margin-bottom: 1rem;
-        color: #023535 !important;
+        color: #0f1f38 !important;
     }
 
     .stDataFrame, .stTable {
-        background-color: #dcfdf9 !important;
-        color: #023535 !important;
+        background-color: #f0f7ff !important;
+        color: #0f1f38 !important;
     }
 
     iframe {
@@ -72,7 +72,6 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-
 
 # --- Session state ---
 if "view" not in st.session_state:
