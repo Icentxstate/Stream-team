@@ -10,32 +10,31 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from branca.colormap import linear
 from streamlit_folium import st_folium
+from streamlit.components.v1 import html
 
+# ---------- Setup ----------
 st.set_page_config(layout="wide")
-
-# --- Session state ---
 if "view" not in st.session_state:
     st.session_state.view = "map"
 if "selected_point" not in st.session_state:
     st.session_state.selected_point = None
 
-# --- Paths ---
+# ---------- Load Data ----------
 csv_path = "WQ.csv"
 shp_zip = "filtered_11_counties.zip"
 shp_folder = "shp_extracted"
 
-# --- Load CSV ---
-try:
-    df = pd.read_csv(csv_path, low_memory=False)
-    df = df.dropna(subset=["Latitude", "Longitude"])
-    df["ActivityStartDate"] = pd.to_datetime(df["Sample Date"], errors='coerce')
-except Exception as e:
-    st.error(f"❌ Failed to load CSV: {e}")
-    st.stop()
+if not os.path.exists(shp_folder):
+    with zipfile.ZipFile(shp_zip, 'r') as zip_ref:
+        zip_ref.extractall(shp_folder)
 
-# --- Melt ---
+df = pd.read_csv(csv_path, low_memory=False)
+df = df.dropna(subset=["Latitude", "Longitude"])
+df["ActivityStartDate"] = pd.to_datetime(df["Sample Date"], errors='coerce')
+
 exclude_cols = ["Name", "Description", "Basin", "County", "Latitude", "Longitude", "TCEQ Stream Segment", "Sample Date"]
 value_cols = [col for col in df.columns if col not in exclude_cols]
+
 df_long = df.melt(
     id_vars=["Name", "Latitude", "Longitude", "Sample Date"],
     value_vars=value_cols,
@@ -47,22 +46,14 @@ df_long["ResultMeasureValue"] = pd.to_numeric(df_long["ResultMeasureValue"], err
 df_long["StationKey"] = df_long["Latitude"].astype(str) + "," + df_long["Longitude"].astype(str)
 df_long = df_long.dropna(subset=["ActivityStartDate", "ResultMeasureValue", "CharacteristicName"])
 
-# --- Load Shapefile ---
-if not os.path.exists(shp_folder):
-    with zipfile.ZipFile(shp_zip, 'r') as zip_ref:
-        zip_ref.extractall(shp_folder)
-
+# ---------- Load Shapefile ----------
 shp_files = glob.glob(os.path.join(shp_folder, "**", "*.shp"), recursive=True)
-if not shp_files:
-    st.error("❌ No shapefile found.")
-    st.stop()
-
 gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
 gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
 gdf_safe["geometry"] = gdf["geometry"]
 bounds = gdf.total_bounds
 
-# --- UI ---
+# ---------- UI Controls ----------
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
 selected_param = st.sidebar.selectbox("📌 Select a Parameter", available_params)
 filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
@@ -73,13 +64,10 @@ latest_values = (
     .set_index("StationKey")
 )
 
-# --- Colormap ---
 min_val = filtered_df["ResultMeasureValue"].min()
 max_val = filtered_df["ResultMeasureValue"].max()
 colormap = linear.RdYlBu_11.scale(min_val, max_val)
-colormap.caption = f"{selected_param} Range"
 
-# --- Basemap selector ---
 basemap_option = st.sidebar.selectbox(
     "🗺️ Basemap Style",
     ["OpenTopoMap", "Esri World Topo Map", "CartoDB Positron", "Esri Satellite Imagery"]
@@ -103,16 +91,9 @@ basemap_tiles = {
     }
 }
 
-# --- VIEW 1: MAP ---
+# ---------- MAP VIEW ----------
 if st.session_state.view == "map":
-    st.title("🌍 Texas Coastal Monitoring Map")
-
-    st.markdown("""
-        <style>
-        .block-container { padding-top: 0rem; padding-bottom: 0rem; }
-        iframe { border: none; }
-        </style>
-        """, unsafe_allow_html=True)
+    st.title("🗺️ Texas Coastal Monitoring Map")
 
     m = folium.Map(
         location=[(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2],
@@ -128,48 +109,76 @@ if st.session_state.view == "map":
             "color": "#0b5394",
             "weight": 2,
             "fillOpacity": 0.3,
-        },
-        name="Counties"
+        }
     ).add_to(m)
 
     for key, row in latest_values.iterrows():
         lat, lon = row["Latitude"], row["Longitude"]
         val = row["ResultMeasureValue"]
-        color = colormap(val)
+        popup_html = f"""
+        <b>Station:</b> {row['Name']}<br>
+        <b>{selected_param}:</b> {val:.2f}<br>
+        <b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}<br><br>
+        <button onclick="window.parent.postMessage({{'action': 'zoom', 'lat': {lat}, 'lon': {lon}}}, '*')">
+        🔍 Zoom to Station</button><br>
+        <button onclick="window.parent.postMessage({{'action': 'analyze', 'lat': {lat}, 'lon': {lon}}}, '*')">
+        📊 Data Analysis</button>
+        """
         folium.CircleMarker(
             location=[lat, lon],
             radius=6,
-            color=color,
+            color=colormap(val),
             fill=True,
             fill_opacity=0.8,
-            popup=folium.Popup(f"{row['Name']}<br>{selected_param}: {val:.2f}<br>{row['ActivityStartDate'].strftime('%Y-%m-%d')}", max_width=250),
+            popup=folium.Popup(popup_html, max_width=300),
         ).add_to(m)
 
     colormap.add_to(m)
     folium.LayerControl().add_to(m)
 
+    # HTML JS listener for message passing from popup buttons
+    html("""
+    <script>
+    window.addEventListener("message", (event) => {
+        if (event.data.action === "analyze") {
+            const coords = `${event.data.lat},${event.data.lon}`;
+            localStorage.setItem("station_coords", coords);
+            window.location.reload();
+        }
+        if (event.data.action === "zoom") {
+            const mapFrames = parent.document.querySelectorAll('iframe');
+            for (const frame of mapFrames) {
+                const map = frame.contentWindow.map;
+                if (map) {
+                    map.setView([event.data.lat, event.data.lon], 15);
+                    break;
+                }
+            }
+        }
+    });
+    </script>
+    """, height=0)
+
     st_data = st_folium(m, width=1400, height=650)
 
-    if st_data and "last_object_clicked" in st_data:
-        lat = st_data["last_object_clicked"].get("lat")
-        lon = st_data["last_object_clicked"].get("lng")
-        if lat and lon:
-            st.session_state.selected_point = f"{lat},{lon}"
-            st.session_state.view = "details"
-            st.experimental_rerun()
+    # Get station selected from localStorage
+    import streamlit_js_eval
+    coords = streamlit_js_eval.get_local_storage("station_coords", key="coords_key")
+    if coords:
+        st.session_state.selected_point = coords
+        st.session_state.view = "details"
 
-# --- VIEW 2: DETAILS ---
+# ---------- DETAILS VIEW ----------
 elif st.session_state.view == "details":
-    coords = st.session_state.selected_point
-    lat, lon = map(float, coords.split(","))
+    lat, lon = map(float, st.session_state.selected_point.split(","))
     st.title("📊 Station Analysis")
     st.write(f"📍 Coordinates: {lat:.5f}, {lon:.5f}")
-
     if st.button("🔙 Back to Map"):
         st.session_state.view = "map"
+        st.session_state.selected_point = None
         st.experimental_rerun()
 
-    ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
+    ts_df = df_long[df_long["StationKey"] == f"{lat},{lon}"].sort_values("ActivityStartDate")
     subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
     selected = st.multiselect("📉 Select parameters for time series", subparams, default=subparams[:1])
 
