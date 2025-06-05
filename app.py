@@ -23,16 +23,32 @@ shp_folder = "shp_extracted"
 rivers_zip = "selected_major_rivers_shp.zip"
 rivers_folder = "rivers_extracted"
 
-# --- Load CSV ---
-try:
+# --- Caching functions ---
+@st.cache_data
+def load_water_quality(csv_path):
     df = pd.read_csv(csv_path, low_memory=False)
     df = df.dropna(subset=["Latitude", "Longitude"])
     df["ActivityStartDate"] = pd.to_datetime(df["Sample Date"], errors='coerce')
-except Exception as e:
-    st.error(f"❌ Failed to load CSV: {e}")
-    st.stop()
+    return df
 
-# --- Long Format Conversion ---
+@st.cache_resource
+def load_shapefile(zip_path, folder_name):
+    if not os.path.exists(folder_name):
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(folder_name)
+    shp_files = glob.glob(os.path.join(folder_name, "**", "*.shp"), recursive=True)
+    if not shp_files:
+        return None, None
+    attrs = gpd.read_file(shp_files[0], ignore_geometry=True)
+    gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
+    return gdf, attrs
+
+# --- Load data ---
+df = load_water_quality(csv_path)
+gdf, _ = load_shapefile(shp_zip, shp_folder)
+gdf_rivers, gdf_rivers_attrs = load_shapefile(rivers_zip, rivers_folder)
+
+# --- Prepare long format ---
 exclude_cols = ["Name", "Description", "Basin", "County", "Latitude", "Longitude", "TCEQ Stream Segment", "Sample Date"]
 value_cols = [col for col in df.columns if col not in exclude_cols]
 df_long = df.melt(
@@ -46,34 +62,6 @@ df_long["ResultMeasureValue"] = pd.to_numeric(df_long["ResultMeasureValue"], err
 df_long["StationKey"] = df_long["Latitude"].astype(str) + "," + df_long["Longitude"].astype(str)
 df_long = df_long.dropna(subset=["ActivityStartDate", "ResultMeasureValue", "CharacteristicName"])
 
-# --- Load shapefile (counties) ---
-if not os.path.exists(shp_folder):
-    with zipfile.ZipFile(shp_zip, 'r') as zip_ref:
-        zip_ref.extractall(shp_folder)
-
-shp_files = glob.glob(os.path.join(shp_folder, "**", "*.shp"), recursive=True)
-if not shp_files:
-    st.error("❌ No county shapefile found.")
-    st.stop()
-
-gdf = gpd.read_file(shp_files[0]).to_crs(epsg=4326)
-gdf_safe = gdf[[col for col in gdf.columns if gdf[col].dtype.kind in 'ifO']].copy()
-gdf_safe["geometry"] = gdf["geometry"]
-
-# --- Load rivers shapefile ---
-if not os.path.exists(rivers_folder):
-    with zipfile.ZipFile(rivers_zip, 'r') as zip_ref:
-        zip_ref.extractall(rivers_folder)
-
-river_shp_files = glob.glob(os.path.join(rivers_folder, "**", "*.shp"), recursive=True)
-if not river_shp_files:
-    st.warning("⚠️ No rivers shapefile found.")
-    gdf_rivers = None
-else:
-    shp_path = river_shp_files[0]
-    gdf_rivers_attrs = gpd.read_file(shp_path, ignore_geometry=True)
-    gdf_rivers = gpd.read_file(shp_path).to_crs(epsg=4326)
-
 # --- UI ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
 selected_param = st.selectbox("📌 Select a Water Quality Parameter", available_params)
@@ -86,7 +74,7 @@ latest_values = (
     .set_index("StationKey")
 )
 
-# --- Colormap based on parameter values ---
+# --- Colormap ---
 min_val = filtered_df["ResultMeasureValue"].min()
 max_val = filtered_df["ResultMeasureValue"].max()
 colormap = linear.RdYlBu_11.scale(min_val, max_val)
@@ -95,65 +83,75 @@ colormap.caption = f"{selected_param} Value Range"
 # --- Map ---
 st.subheader(f"🗺️ Latest Measurements of {selected_param}")
 map_center = [filtered_df["Latitude"].mean(), filtered_df["Longitude"].mean()]
-m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
-# Add county shapefile
-folium.GeoJson(
-    gdf_safe,
-    style_function=lambda x: {
-        "fillColor": "#0b5394",
-        "color": "#0b5394",
-        "weight": 2,
-        "fillOpacity": 0.3,
-    },
-    name="Texas Coastal Counties"
-).add_to(m)
+with st.spinner("Rendering interactive map..."):
+    m = folium.Map(location=map_center, zoom_start=7, tiles="CartoDB positron")
 
-# --- Add rivers (1 color per name, 1 label per river)
-if gdf_rivers is not None and "STRM_NM" in gdf_rivers.columns:
-    river_names = gdf_rivers_attrs["STRM_NM"].dropna().unique()
-    color_palette = list(mcolors.CSS4_COLORS.values())
-    random.shuffle(color_palette)
-    color_map = {name: color_palette[i % len(color_palette)] for i, name in enumerate(river_names)}
+    # Add counties
+    if gdf is not None:
+        folium.GeoJson(
+            gdf,
+            name="Coastal Counties",
+            style_function=lambda x: {
+                "fillColor": "#0b5394",
+                "color": "#0b5394",
+                "weight": 2,
+                "fillOpacity": 0.3,
+            },
+        ).add_to(m)
 
-    for _, row in gdf_rivers.iterrows():
-        name = row["STRM_NM"] if pd.notnull(row["STRM_NM"]) else "Unnamed River"
-        color = color_map.get(name, "#0077b6")
+    # Add rivers (top 20)
+    if gdf_rivers is not None and "STRM_NM" in gdf_rivers.columns:
+        top_rivers = gdf_rivers_attrs["STRM_NM"].value_counts().nlargest(20).index
+        gdf_rivers = gdf_rivers[gdf_rivers["STRM_NM"].isin(top_rivers)]
 
-        if row.geometry.type == "LineString":
-            segments = [row.geometry]
-        elif row.geometry.type == "MultiLineString":
-            segments = row.geometry.geoms
-        else:
-            continue
+        color_palette = list(mcolors.CSS4_COLORS.values())
+        random.shuffle(color_palette)
+        river_colors = {name: color_palette[i % len(color_palette)] for i, name in enumerate(top_rivers)}
 
-        for seg in segments:
-            coords = [(lat, lon) for lon, lat in seg.coords]
-            folium.PolyLine(
-                locations=coords,
-                color=color,
-                weight=3,
-                tooltip=name,
-                popup=folium.Popup(f"<b>{name}</b>", max_width=250)
-            ).add_to(m)
+        river_group = folium.FeatureGroup(name="Major Rivers", show=True).add_to(m)
 
-# Add circle markers for water quality
-for key, row in latest_values.iterrows():
-    lat, lon = row["Latitude"], row["Longitude"]
-    val = row["ResultMeasureValue"]
-    color = colormap(val)
-    popup_html = f"<b>Station:</b> {row['Name']}<br><b>{selected_param}:</b> {val:.2f}<br><b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}"
-    folium.CircleMarker(
-        location=[lat, lon],
-        radius=6,
-        color=color,
-        fill=True,
-        fill_opacity=0.8,
-        popup=folium.Popup(popup_html, max_width=300),
-    ).add_to(m)
+        for _, row in gdf_rivers.iterrows():
+            name = row["STRM_NM"] if pd.notnull(row["STRM_NM"]) else "Unnamed River"
+            color = river_colors.get(name, "#0077b6")
 
-colormap.add_to(m)
-st_data = st_folium(m, width=1300, height=600)
+            if row.geometry.type == "LineString":
+                segments = [row.geometry]
+            elif row.geometry.type == "MultiLineString":
+                segments = row.geometry.geoms
+            else:
+                continue
+
+            for seg in segments:
+                coords = [(lat, lon) for lon, lat in seg.coords]
+                folium.PolyLine(
+                    locations=coords,
+                    color=color,
+                    weight=3,
+                    tooltip=name,
+                    popup=folium.Popup(f"<b>{name}</b>", max_width=250)
+                ).add_to(river_group)
+
+    # Add stations
+    station_group = folium.FeatureGroup(name="WQ Stations", show=True).add_to(m)
+
+    for key, row in latest_values.iterrows():
+        lat, lon = row["Latitude"], row["Longitude"]
+        val = row["ResultMeasureValue"]
+        color = colormap(val)
+        popup_html = f"<b>Station:</b> {row['Name']}<br><b>{selected_param}:</b> {val:.2f}<br><b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}"
+        folium.CircleMarker(
+            location=[lat, lon],
+            radius=6,
+            color=color,
+            fill=True,
+            fill_opacity=0.8,
+            popup=folium.Popup(popup_html, max_width=300),
+        ).add_to(station_group)
+
+    colormap.add_to(m)
+    folium.LayerControl(collapsed=False).add_to(m)
+    st_data = st_folium(m, width=1300, height=600)
 
 # --- Click interaction ---
 if st_data and "last_object_clicked" in st_data:
