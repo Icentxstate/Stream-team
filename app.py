@@ -13,17 +13,17 @@ from streamlit_folium import st_folium
 
 # --- UI config ---
 st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🌊", layout="wide")
-st.image("https://i.imgur.com/Zn88ptF.png", width=150)  # Cypress Creek logo URL placeholder
+st.image("https://www.cypresscreekproject.net/uploads/2/3/1/3/23131170/published/logo-ccrwp_1.png", width=180)  # Cypress Creek logo URL placeholder
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #fefefe;
+        background-color: #ffffff;
         color: #222222;
         font-family: 'Segoe UI', sans-serif;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
-        color: #b94a26 !important;
+        color: #d35400 !important;
         font-weight: bold !important;
         background-color: #ffffff !important;
         padding: 0.5rem;
@@ -38,7 +38,7 @@ st.markdown("""
     }
 
     .stButton > button {
-        background-color: #b94a26 !important;
+        background-color: #138d75 !important;
         color: white !important;
         font-weight: bold;
         border-radius: 4px;
@@ -47,7 +47,7 @@ st.markdown("""
     }
 
     .stButton > button:hover {
-        background-color: #d85f34 !important;
+        background-color: #117a65 !important;
     }
 
     .dataframe tbody tr {
@@ -57,8 +57,8 @@ st.markdown("""
 
     .block-container > div > h2 {
         padding: 0.6rem 1rem;
-        background-color: #fdf4ec;
-        border-left: 5px solid #b94a26;
+        background-color: #e8f6f3;
+        border-left: 5px solid #138d75;
         border-radius: 0;
         margin-bottom: 1rem;
         color: #b94a26 !important;
