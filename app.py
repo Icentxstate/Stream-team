@@ -21,22 +21,22 @@ st.markdown("""
         font-family: 'Segoe UI', sans-serif;
     }
 
-    .css-1544g2n { /* sidebar */
+    .stSidebar {
         background-image: url("https://www.cypresscreekproject.net/uploads/2/3/1/3/23131170/published/ccrwp-cover.jpg");
         background-size: cover;
         background-repeat: no-repeat;
         background-position: center top;
-        opacity: 0.18;
+        background-attachment: scroll;
     }
 
     .stSidebar > div:first-child {
-        background-color: rgba(0, 0, 0, 0.6);
+        background-color: rgba(255, 255, 255, 0.88);
         padding: 1rem;
         border-radius: 0;
     }
 
     .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar h4, .stSidebar label {
-        color: #ffffff !important;
+        color: #000000 !important;
     }
 
     h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
