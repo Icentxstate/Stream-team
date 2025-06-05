@@ -55,7 +55,7 @@ gdf_safe["geometry"] = gdf["geometry"]
 
 # --- UI ---
 st.title("🗺️ Texas Coastal Monitoring Dashboard")
-selected_param = st.sidebar.multiselect("Select Parameters", sorted(df_long["CharacteristicName"].dropna().unique()))))
+selected_param = st.sidebar.multiselect("Select Parameters", sorted(df_long["CharacteristicName"].dropna().unique())))
 filtered_df = df_long[df_long["CharacteristicName"].isin(selected_param)] if selected_param else df_long.copy()
 selected_dates = st.sidebar.date_input("Select Date(s)", [])
 if not selected_dates:
