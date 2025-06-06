@@ -506,16 +506,41 @@ with tab7:
         st.warning("⚠️ Please select at least one parameter.")
 
 # --- Tab 8: Spatio-Temporal Heatmap ---
+
 with tab8:
     if selected:
         st.subheader("🗺️ Spatio-Temporal Heatmap")
 
+        # 🔘 Select Aggregation Level
+        time_mode = st.radio("🕒 Aggregation Level", ["Monthly", "Seasonal", "Yearly"], horizontal=True)
+
+        def get_season(month):
+            if month in [12, 1, 2]:
+                return "Winter"
+            elif month in [3, 4, 5]:
+                return "Spring"
+            elif month in [6, 7, 8]:
+                return "Summer"
+            else:
+                return "Fall"
+
         heatmap_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
         heatmap_df = heatmap_df.dropna(subset=["ActivityStartDate", "ResultMeasureValue"])
-        heatmap_df["Month"] = heatmap_df["ActivityStartDate"].dt.to_period("M").astype(str)
 
+        # 🗂️ Time Grouping
+        if time_mode == "Monthly":
+            heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.to_period("M").astype(str)
+        elif time_mode == "Yearly":
+            heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
+        elif time_mode == "Seasonal":
+            heatmap_df["Season"] = heatmap_df["ActivityStartDate"].dt.month.apply(get_season)
+            heatmap_df["Year"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
+            heatmap_df["TimeGroup"] = heatmap_df["Year"] + " - " + heatmap_df["Season"]
+
+        # 📊 Create one heatmap per parameter
         for param in selected:
             param_df = heatmap_df[heatmap_df["CharacteristicName"] == param].copy()
+
             if param_df.empty:
                 st.warning(f"No data available for {param}")
                 continue
@@ -524,7 +549,7 @@ with tab8:
                 param_df,
                 values="ResultMeasureValue",
                 index="StationKey",
-                columns="Month",
+                columns="TimeGroup",
                 aggfunc="mean"
             ).sort_index()
 
@@ -532,25 +557,26 @@ with tab8:
                 st.warning(f"No data to display heatmap for {param}")
                 continue
 
-            st.markdown(f"### 🔥 Heatmap for `{param}`")
+            st.markdown(f"### 🔥 Heatmap for `{param}` ({time_mode})")
             fig_hm, ax_hm = plt.subplots(figsize=(12, max(4, len(pivot) * 0.4)))
             sns.heatmap(pivot, cmap="coolwarm", linewidths=0.5, linecolor="gray", ax=ax_hm, annot=False)
-            ax_hm.set_title(f"{param} - Spatio-Temporal Heatmap", fontsize=14)
-            ax_hm.set_xlabel("Month")
+            ax_hm.set_title(f"{param} - {time_mode} Heatmap", fontsize=14)
+            ax_hm.set_xlabel(time_mode)
             ax_hm.set_ylabel("Station")
             plt.xticks(rotation=45)
 
             st.pyplot(fig_hm)
 
-            # Download image
+            # 💾 Download Heatmap Image
             buf_hm = BytesIO()
             fig_hm.savefig(buf_hm, format="png", bbox_inches="tight")
             st.download_button(
                 label=f"💾 Download Heatmap for {param}",
                 data=buf_hm.getvalue(),
-                file_name=f"heatmap_{param}.png"
+                file_name=f"heatmap_{param}_{time_mode.lower()}.png"
             )
 
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
 
