@@ -148,8 +148,20 @@ bounds = gdf.total_bounds
 
 # --- Sidebar ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
+# --- Parameter selection ---
 selected_param = st.sidebar.selectbox("📌 Select Parameter", available_params)
-filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
+
+# --- Date filter by month and year ---
+df_param = df_long[df_long["CharacteristicName"] == selected_param].copy()
+df_param["YearMonth"] = df_param["ActivityStartDate"].dt.to_period("M").astype(str)
+unique_periods = sorted(df_param["YearMonth"].dropna().unique())
+selected_period = st.sidebar.selectbox("📅 Select Month-Year", ["All"] + unique_periods)
+
+if selected_period != "All":
+    df_param = df_param[df_param["YearMonth"] == selected_period]
+
+filtered_df = df_param.copy()
+
 latest_values = (
     filtered_df.sort_values("ActivityStartDate")
     .groupby("StationKey")
