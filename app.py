@@ -272,18 +272,18 @@ elif st.session_state.view == "details":
         )
 
 # --- Create Tabs for Advanced Analysis ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-    "📈 Time Series",                     # Tab 1: نمایش سری زمانی پارامترهای انتخابی
-    "📉 Scatter Plot",                   # Tab 2: نمودار پراکندگی بین دو پارامتر
-    "📊 Summary Statistics",             # Tab 3: جدول آمار توصیفی
-    "🧮 Correlation Heatmap",            # Tab 4: ماتریس همبستگی بین پارامترها
-    "📦 Seasonal Boxplot",               # Tab 5: جعبه نمودار برای تحلیل فصلی
-    "📐 Trend Analysis",                 # Tab 6: آزمون روند زمانی Mann-Kendall
-    "💧 WQI",                            # Tab 7: شاخص ترکیبی کیفیت آب (Water Quality Index)
-    "🗺️ Spatio-Temporal Heatmap",       # Tab 8: نقشه حرارتی زمانی-مکانی
-    "🚨 Anomaly Detection",              # Tab 9: شناسایی داده‌های پرت با روش IQR
-    "📍 Clustering"                      # Tab 10: خوشه‌بندی ایستگاه‌ها با KMeans
-])
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+            "📈 Time Series",                     # Tab 1: نمایش سری زمانی پارامترهای انتخابی
+            "📉 Scatter Plot",                   # Tab 2: نمودار پراکندگی بین دو پارامتر
+            "📊 Summary Statistics",             # Tab 3: جدول آمار توصیفی
+            "🧮 Correlation Heatmap",            # Tab 4: ماتریس همبستگی بین پارامترها
+            "📦 Seasonal Boxplot",               # Tab 5: جعبه نمودار برای تحلیل فصلی
+            "📐 Trend Analysis",                 # Tab 6: آزمون روند زمانی Mann-Kendall
+            "💧 WQI",                            # Tab 7: شاخص ترکیبی کیفیت آب (Water Quality Index)
+            "🗺️ Spatio-Temporal Heatmap",       # Tab 8: نقشه حرارتی زمانی-مکانی
+            "🚨 Anomaly Detection",              # Tab 9: شناسایی داده‌های پرت با روش IQR
+            "📍 Clustering"                      # Tab 10: خوشه‌بندی ایستگاه‌ها با KMeans
+            ])
         # --- Tab 1: Time Series ---
         with tab1:
             st.subheader("📈 Time Series")
