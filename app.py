@@ -91,6 +91,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
 # --- Session state ---
 if "view" not in st.session_state:
     st.session_state.view = "map"
@@ -159,7 +160,7 @@ colormap = StepColormap(
     caption=f"{selected_param} Value Range"
 )
 
-basemap_option = st.sidebar.selectbox("🗺️ Basemap Style", [
+basemap_option = st.sidebar.selectbox("🗌 Basemap Style", [
     "OpenTopoMap", "Esri World Topo Map", "CartoDB Positron", "Esri Satellite Imagery"
 ])
 basemap_tiles = {
@@ -217,7 +218,6 @@ if st.session_state.view == "map":
 
     colormap.add_to(m)
     folium.LayerControl().add_to(m)
-
     st_data = st_folium(m, width=None, height=600)
 
     if st_data and st_data.get("last_object_clicked"):
@@ -251,6 +251,7 @@ elif st.session_state.view == "details":
             .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
             .dropna(how='all')
         )
+
         st.subheader("📈 Time Series")
         fig, ax = plt.subplots(figsize=(10, 5))
         for col in plot_df.columns:
@@ -258,29 +259,27 @@ elif st.session_state.view == "details":
         ax.set_ylabel("Value")
         ax.set_xlabel("Date")
         ax.legend()
+        ax.grid(True)
         st.pyplot(fig)
 
-        # Scatter Plot: Parameter vs Parameter
-if len(selected) == 2:
-    st.subheader(f"📌 Scatter Plot: {selected[0]} vs {selected[1]}")
+        # Scatter Plot between two parameters
+        if len(selected) == 2:
+            st.subheader(f"📌 Scatter Plot: {selected[0]} vs {selected[1]}")
+            scatter_df = plot_df.dropna(subset=selected)
+            fig3, ax3 = plt.subplots(figsize=(8, 6))
+            ax3.scatter(scatter_df[selected[0]], scatter_df[selected[1]], alpha=0.7, color="#2563eb")
+            ax3.set_xlabel(selected[0])
+            ax3.set_ylabel(selected[1])
+            ax3.set_title("Parameter Correlation")
+            ax3.grid(True)
+            st.pyplot(fig3)
+        elif len(selected) > 2:
+            st.info("⚠️ Scatter plot only available when exactly two parameters are selected.")
 
-    scatter_df = plot_df.dropna(subset=selected)
-
-    fig3, ax3 = plt.subplots(figsize=(8, 6))
-    ax3.scatter(scatter_df[selected[0]], scatter_df[selected[1]], alpha=0.7, color="#2563eb")
-    ax3.set_xlabel(selected[0])
-    ax3.set_ylabel(selected[1])
-    ax3.set_title("Parameter Correlation")
-    ax3.grid(True)
-
-    st.pyplot(fig3)
-elif len(selected) > 2:
-    st.info("⚠️ Scatter plot is only available when exactly two parameters are selected.")
-       
         st.subheader("📊 Summary Statistics")
         st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
 
-        st.subheader("🧮 Correlation Heatmap")
+        st.subheader("🫮 Correlation Heatmap")
         corr = plot_df.corr()
         fig2, ax2 = plt.subplots(figsize=(8, 6))
         sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
