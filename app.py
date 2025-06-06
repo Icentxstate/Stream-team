@@ -252,12 +252,7 @@ elif st.session_state.view == "details":
     subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
     selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
-    if selected:
-        plot_df = (
-            ts_df[ts_df["CharacteristicName"].isin(selected)]
-            .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
-            .dropna(how='all')
-        )
+
         st.subheader("📈 Time Series")
         fig, ax = plt.subplots(figsize=(10, 5))
         for col in plot_df.columns:
