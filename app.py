@@ -336,22 +336,23 @@ elif st.session_state.view == "details":
             st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
 
         # --- Tab 4: Correlation Heatmap ---
-        with tab4:
-            st.subheader("🧮 Correlation Heatmap")
-            corr = plot_df.corr()
-            if not corr.empty:
-                fig2, ax2 = plt.subplots(figsize=(8, 6))
-                sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
-                st.pyplot(fig2)
-            else:
-                st.info("Not enough data for correlation heatmap.")
+with tab4:
+    if selected:
+        st.subheader("🧮 Correlation Heatmap")
+        corr = plot_df.corr()
+        if not corr.empty:
+            fig2, ax2 = plt.subplots(figsize=(8, 6))
+            sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
+            st.pyplot(fig2)
+        else:
+            st.info("Not enough data for correlation heatmap.")
     else:
-        st.warning("⚠️ Please select at least one parameter to analyze.")
+        st.warning("⚠️ Please select at least one parameter.")
 
-        # --- Tab 5: Seasonal Boxplot ---
+# --- Tab 5: Seasonal Boxplot ---
 with tab5:
     if selected:
-        st.subheader("📆 Seasonal Boxplot")
+        st.subheader("📦 Seasonal Boxplot")
 
         def get_season(month):
             if month in [12, 1, 2]:
@@ -369,9 +370,9 @@ with tab5:
         if not seasonal_df.empty:
             fig5, ax5 = plt.subplots(figsize=(10, 5))
             sns.boxplot(
-                x="Season", 
-                y="ResultMeasureValue", 
-                hue="CharacteristicName", 
+                x="Season",
+                y="ResultMeasureValue",
+                hue="CharacteristicName",
                 data=seasonal_df,
                 palette="Set2"
             )
@@ -383,7 +384,7 @@ with tab5:
     else:
         st.warning("⚠️ Please select at least one parameter.")
 
-      # --- Tab 6: Trend Analysis (Mann-Kendall) ---
+# --- Tab 6: Trend Analysis (Mann-Kendall) ---
 with tab6:
     if selected:
         st.subheader("📐 Mann-Kendall Trend Test")
@@ -430,6 +431,151 @@ with tab6:
         }))
 
         csv_trend = trend_df.to_csv(index=False).encode("utf-8")
-        st.download_button("📎 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
+        st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
+
+# --- Tab 7: WQI ---
+with tab7:
+    if selected:
+        st.subheader("💧 Water Quality Index (WQI)")
+        wqi_df = ts_df.copy()
+        parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
+
+        selected_wqi_params = st.multiselect("🧪 Select parameters for WQI", parameters, default=parameters[:3])
+
+        if selected_wqi_params:
+            st.markdown("### ⚖️ Assign weights (total should sum to 1):")
+            weights = {}
+            total_weight = 0.0
+            for param in selected_wqi_params:
+                w = st.slider(f"Weight for {param}", 0.0, 1.0, 1.0 / len(selected_wqi_params), 0.05, key=f"w_{param}")
+                weights[param] = w
+                total_weight += w
+
+            if abs(total_weight - 1.0) > 0.01:
+                st.warning("⚠️ Total weights must sum to 1. Adjust sliders.")
+            else:
+                norm_df = pd.DataFrame()
+
+                for param in selected_wqi_params:
+                    sub = wqi_df[wqi_df["CharacteristicName"] == param].copy()
+                    sub = sub[["ActivityStartDate", "ResultMeasureValue"]].dropna().copy()
+                    sub = sub.set_index("ActivityStartDate").resample("M").mean().reset_index()
+                    min_val = sub["ResultMeasureValue"].min()
+                    max_val = sub["ResultMeasureValue"].max()
+                    sub["Normalized"] = 100 * (sub["ResultMeasureValue"] - min_val) / (max_val - min_val + 1e-6)
+                    sub["Weighted"] = sub["Normalized"] * weights[param]
+                    sub["Parameter"] = param
+                    norm_df = pd.concat([norm_df, sub])
+
+                wqi_monthly = norm_df.groupby("ActivityStartDate")["Weighted"].sum().reset_index()
+                wqi_monthly["WQI Category"] = pd.cut(
+                    wqi_monthly["Weighted"],
+                    bins=[0, 25, 50, 75, 100],
+                    labels=["Poor", "Moderate", "Good", "Excellent"]
+                )
+
+                st.line_chart(wqi_monthly.set_index("ActivityStartDate")["Weighted"])
+                st.dataframe(wqi_monthly)
+
+                csv_wqi = wqi_monthly.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Download WQI Data", data=csv_wqi, file_name="wqi_results.csv")
+        else:
+            st.info("Please select at least one parameter for WQI.")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
+
+# --- Tab 8: Spatio-Temporal Heatmap ---
+with tab8:
+    if selected:
+        st.subheader("🗺️ Spatial-Temporal Heatmap")
+
+        param_options = sorted(ts_df["CharacteristicName"].dropna().unique())
+        selected_param_ht = st.selectbox("Select Parameter", param_options, key="heatmap_param")
+
+        heat_df = ts_df[ts_df["CharacteristicName"] == selected_param_ht].copy()
+        heat_df["YearMonth"] = heat_df["ActivityStartDate"].dt.to_period("M").astype(str)
+        months_avail = sorted(heat_df["YearMonth"].dropna().unique())
+
+        selected_month = st.selectbox("Select Month", months_avail, key="heatmap_month")
+        heat_month_df = heat_df[heat_df["YearMonth"] == selected_month]
+
+        if heat_month_df.empty:
+            st.warning("⚠️ No data available for this month.")
+        else:
+            avg_vals = heat_month_df.groupby("StationKey").agg({
+                "ResultMeasureValue": "mean",
+                "Latitude": "first",
+                "Longitude": "first"
+            }).reset_index()
+
+            min_val = avg_vals["ResultMeasureValue"].min()
+            max_val = avg_vals["ResultMeasureValue"].max()
+            colormap_ht = StepColormap(
+                colors=['#3288bd', '#99d8c9', '#e6f598', '#fee08b', '#f46d43', '#d53e4f'],
+                index=np.linspace(min_val, max_val, 6),
+                vmin=min_val,
+                vmax=max_val
+            )
+
+            m_ht = folium.Map(
+                location=[avg_vals["Latitude"].mean(), avg_vals["Longitude"].mean()],
+                zoom_start=10
+            )
+
+            for _, row in avg_vals.iterrows():
+                folium.CircleMarker(
+                    location=[row["Latitude"], row["Longitude"]],
+                    radius=6,
+                    color=colormap_ht(row["ResultMeasureValue"]),
+                    fill=True,
+                    fill_opacity=0.85,
+                    popup=f"{selected_param_ht}: {row['ResultMeasureValue']:.2f}"
+                ).add_to(m_ht)
+
+            colormap_ht.add_to(m_ht)
+            st_folium(m_ht, height=600, width=None)
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
+
+# --- Tab 9: Anomaly Detection ---
+with tab9:
+    if selected:
+        st.subheader("🚨 Anomaly Detection (IQR Method)")
+        selected_param_anom = st.selectbox("Select parameter for anomaly check", subparams, key="anom_param")
+        anomaly_df = ts_df[ts_df["CharacteristicName"] == selected_param_anom].copy()
+        anomaly_df = anomaly_df.sort_values("ActivityStartDate")
+        anomaly_df = anomaly_df[["ActivityStartDate", "ResultMeasureValue"]].dropna()
+
+        if len(anomaly_df) < 8:
+            st.warning("⚠️ Not enough data points.")
+        else:
+            Q1 = anomaly_df["ResultMeasureValue"].quantile(0.25)
+            Q3 = anomaly_df["ResultMeasureValue"].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+
+            anomaly_df["Anomaly"] = ((anomaly_df["ResultMeasureValue"] < lower_bound) |
+                                     (anomaly_df["ResultMeasureValue"] > upper_bound))
+
+            st.markdown(f"**Anomaly Thresholds:** Lower = {lower_bound:.2f}, Upper = {upper_bound:.2f}")
+            st.write(f"🔴 {anomaly_df['Anomaly'].sum()} anomalies detected out of {len(anomaly_df)} records.")
+
+            fig_anom, ax_anom = plt.subplots(figsize=(10, 5))
+            ax_anom.plot(anomaly_df["ActivityStartDate"], anomaly_df["ResultMeasureValue"], label="Values", marker='o')
+            ax_anom.scatter(anomaly_df[anomaly_df["Anomaly"]]["ActivityStartDate"],
+                            anomaly_df[anomaly_df["Anomaly"]]["ResultMeasureValue"],
+                            color='red', label="Anomalies", zorder=5)
+            ax_anom.axhline(lower_bound, color='orange', linestyle='--', label="Lower Bound")
+            ax_anom.axhline(upper_bound, color='orange', linestyle='--', label="Upper Bound")
+            ax_anom.legend()
+            ax_anom.set_ylabel("Value")
+            ax_anom.set_title(f"Anomaly Detection for {selected_param_anom}")
+            st.pyplot(fig_anom)
+            st.dataframe(anomaly_df)
+            csv_anom = anomaly_df.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Anomaly Table", data=csv_anom, file_name="anomaly_results.csv")
     else:
         st.warning("⚠️ Please select at least one parameter.")
