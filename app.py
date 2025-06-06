@@ -504,3 +504,53 @@ with tab7:
             st.info("Please select at least one parameter for WQI.")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
+# --- Tab 8: Spatio-Temporal Heatmap ---
+with tab8:
+    if selected:
+        st.subheader("🗺️ Spatio-Temporal Heatmap")
+
+        heatmap_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+        heatmap_df = heatmap_df.dropna(subset=["ActivityStartDate", "ResultMeasureValue"])
+        heatmap_df["Month"] = heatmap_df["ActivityStartDate"].dt.to_period("M").astype(str)
+
+        for param in selected:
+            param_df = heatmap_df[heatmap_df["CharacteristicName"] == param].copy()
+            if param_df.empty:
+                st.warning(f"No data available for {param}")
+                continue
+
+            pivot = pd.pivot_table(
+                param_df,
+                values="ResultMeasureValue",
+                index="StationKey",
+                columns="Month",
+                aggfunc="mean"
+            ).sort_index()
+
+            if pivot.empty:
+                st.warning(f"No data to display heatmap for {param}")
+                continue
+
+            st.markdown(f"### 🔥 Heatmap for `{param}`")
+            fig_hm, ax_hm = plt.subplots(figsize=(12, max(4, len(pivot) * 0.4)))
+            sns.heatmap(pivot, cmap="coolwarm", linewidths=0.5, linecolor="gray", ax=ax_hm, annot=False)
+            ax_hm.set_title(f"{param} - Spatio-Temporal Heatmap", fontsize=14)
+            ax_hm.set_xlabel("Month")
+            ax_hm.set_ylabel("Station")
+            plt.xticks(rotation=45)
+
+            st.pyplot(fig_hm)
+
+            # Download image
+            buf_hm = BytesIO()
+            fig_hm.savefig(buf_hm, format="png", bbox_inches="tight")
+            st.download_button(
+                label=f"💾 Download Heatmap for {param}",
+                data=buf_hm.getvalue(),
+                file_name=f"heatmap_{param}.png"
+            )
+
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
+
