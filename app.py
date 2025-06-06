@@ -68,6 +68,16 @@ st.markdown("""
         color: #111827;
     }
 
+    .custom-box {
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+
+    .section1 { background-color: #e6f4ea; }
+    .section2 { background-color: #f0f8f6; }
+    .section3 { background-color: #f9fdfc; }
+
     .block-container > div > h2 {
         background-color: #f3f4f6;
         border-left: 4px solid #3b82f6;
@@ -95,6 +105,8 @@ st.markdown("""
 
 # ... [unchanged code above remains here]
 
+        # --- Section: Time Series ---
+        st.markdown('<div class="custom-box section1">', unsafe_allow_html=True)
         st.subheader("📈 Time Series")
         fig, ax = plt.subplots(figsize=(10, 5))
         for col in plot_df.columns:
@@ -104,14 +116,14 @@ st.markdown("""
         ax.legend()
         ax.grid(True)
         st.pyplot(fig)
-
         img_bytes = BytesIO()
         fig.savefig(img_bytes, format="png")
         st.download_button("📥 Download Time Series", data=img_bytes.getvalue(), file_name="time_series.png", mime="image/png")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
-
+        # --- Section: Scatter Plot ---
         if len(selected) == 2:
+            st.markdown('<div class="custom-box section2">', unsafe_allow_html=True)
             st.subheader(f"📌 Scatter Plot: {selected[0]} vs {selected[1]}")
             scatter_df = plot_df.dropna(subset=selected)
             fig3, ax3 = plt.subplots(figsize=(8, 6))
@@ -121,26 +133,30 @@ st.markdown("""
             ax3.set_title("Parameter Correlation")
             ax3.grid(True)
             st.pyplot(fig3)
-
             img_bytes2 = BytesIO()
             fig3.savefig(img_bytes2, format="png")
             st.download_button("📥 Download Scatter Plot", data=img_bytes2.getvalue(), file_name="scatter_plot.png", mime="image/png")
+            st.markdown('</div>', unsafe_allow_html=True)
         elif len(selected) > 2:
             st.info("⚠️ Scatter plot only available when exactly two parameters are selected.")
 
-        st.markdown("---")
-
+        # --- Section: Summary Statistics ---
+        st.markdown('<div class="custom-box section3">', unsafe_allow_html=True)
         st.subheader("📊 Summary Statistics")
-        st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
+        stats_df = plot_df.describe().T
+        st.dataframe(stats_df.style.format("{:.2f}"))
+        csv_stats = stats_df.to_csv(index=True).encode('utf-8')
+        st.download_button("📥 Download Summary Statistics", data=csv_stats, file_name="summary_statistics.csv", mime="text/csv")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
-
+        # --- Section: Correlation Heatmap ---
+        st.markdown('<div class="custom-box section2">', unsafe_allow_html=True)
         st.subheader("🧮 Correlation Heatmap")
         corr = plot_df.corr()
         fig2, ax2 = plt.subplots(figsize=(8, 6))
         sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
         st.pyplot(fig2)
-
         img_bytes3 = BytesIO()
         fig2.savefig(img_bytes3, format="png")
         st.download_button("📥 Download Correlation Heatmap", data=img_bytes3.getvalue(), file_name="correlation_heatmap.png", mime="image/png")
+        st.markdown('</div>', unsafe_allow_html=True)
