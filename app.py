@@ -299,21 +299,26 @@ if not ts_df.empty:
     fig3.savefig(buf_scatter, format="png")
     st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
 
-        #####------ Summary Statistics----
-        st.subheader("📊 Summary Statistics")
-        st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
-        # Download summary table
-        csv_stats = plot_df.describe().T.to_csv().encode("utf-8")
-        st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
-        
-        #----Correlation Heatmap----
-        st.subheader("🧮 Correlation Heatmap")
-        corr = plot_df.corr()
+# --- Summary Statistics and Correlation ---
+if not plot_df.empty:
+    st.subheader("📊 Summary Statistics")
+    st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
+
+    # Download summary table
+    csv_stats = plot_df.describe().T.to_csv().encode("utf-8")
+    st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
+
+    # Correlation Heatmap
+    st.subheader("🧮 Correlation Heatmap")
+    corr = plot_df.corr()
+    if not corr.empty:
         fig2, ax2 = plt.subplots(figsize=(8, 6))
         sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
         st.pyplot(fig2)
     else:
-        st.info("Please select at least one parameter.")
+        st.info("Not enough data for correlation heatmap.")
+else:
+    st.warning("⚠️ No valid data available for statistics or correlation.")
 
 
 
