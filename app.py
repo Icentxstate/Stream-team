@@ -5,6 +5,7 @@ import folium
 import zipfile
 import os
 import glob
+from io import BytesIO
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
