@@ -15,88 +15,82 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🌊", layout="wide")
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=PT+Serif&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-    body, .stApp {
-        background-color: #ffffff;
-        color: #222222;
-        font-family: 'PT Serif', 'Georgia', serif;
+    html, body, .stApp {
+        background-color: #f9f9f9;
+        font-family: 'Inter', sans-serif;
+        color: #1f2937;
     }
 
-    .stSidebar > div:first-child {
-        background-color: rgba(255, 255, 255, 0.96);
-        padding: 1rem;
-        border-radius: 0;
+    .stSidebar {
+        background-color: #ffffff !important;
+        border-right: 1px solid #e5e7eb;
     }
 
     .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar h4, .stSidebar label {
-        color: #000000 !important;
+        color: #111827 !important;
+        font-weight: 600;
     }
 
-    h1, h2, h3, h4, .stMarkdown, .stText, label, .css-10trblm, .css-1v3fvcr {
-        color: #0c6e72 !important;
-        font-weight: bold !important;
-        background-color: #ffffff !important;
-        padding: 0.5rem;
-        border-radius: 0;
+    h1, h2, h3, h4 {
+        color: #111827 !important;
+        font-weight: 700;
+        padding-bottom: 0.3rem;
+        border-bottom: 2px solid #e5e7eb;
     }
 
     .stSelectbox, .stMultiselect, .stTextInput, .stDateInput, .stDataFrameContainer, .stForm {
-        background-color: #f8fdfd !important;
-        color: #3a3a3a !important;
-        border-radius: 4px;
-        border: 1px solid #cfd7d7;
-        font-family: 'PT Serif', 'Georgia', serif;
+        background-color: #ffffff !important;
+        color: #1f2937 !important;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        padding: 0.3rem;
     }
 
     .stButton > button {
-        background-color: #cc4b00 !important;
+        background-color: #2563eb !important;
         color: white !important;
-        font-weight: bold;
-        border-radius: 4px;
-        padding: 0.4rem 1rem;
-        transition: 0.2s;
-        font-family: 'PT Serif', 'Georgia', serif;
+        font-weight: 600;
+        border-radius: 6px;
+        padding: 0.5rem 1.2rem;
+        transition: background-color 0.2s ease-in-out;
+        border: none;
     }
 
     .stButton > button:hover {
-        background-color: #e76f00 !important;
+        background-color: #1e40af !important;
     }
 
     .dataframe tbody tr {
-        background-color: #fef9f3 !important;
-        color: #000000;
+        background-color: #fdfdfd !important;
+        color: #111827;
     }
 
     .block-container > div > h2 {
-        padding: 0.6rem 1rem;
-        background-color: #eef8f8;
-        border-left: 5px solid #0c6e72;
-        border-radius: 0;
+        background-color: #f3f4f6;
+        border-left: 4px solid #3b82f6;
+        padding: 0.7rem 1rem;
+        border-radius: 4px;
         margin-bottom: 1rem;
-        color: #cc4b00 !important;
+        color: #111827 !important;
     }
 
     .stDataFrame, .stTable {
         background-color: #ffffff !important;
-        color: #222222 !important;
-        font-family: 'PT Serif', 'Georgia', serif;
+        color: #111827 !important;
     }
 
     iframe {
         border: none;
     }
+
+    .stTooltip {
+        background-color: #1f2937 !important;
+        color: #ffffff !important;
+    }
     </style>
 """, unsafe_allow_html=True)
-
-# 📌 Orange Welcome Card
-st.markdown("""
-    <div style='background-color:#fef3e2;padding:1.5rem 2rem;border-left:5px solid #cc4b00;border-radius:5px;margin-bottom:1rem;'>
-        <h2 style='color:#cc4b00;margin-bottom:0.5rem;'>Welcome to the Cypress Creek Water Dashboard</h2>
-        <p style='color:#333333;font-size:16px;'>Explore real-time water quality trends across the region. Click on any station to view historical measurements and statistics. Customize the view using the sidebar on the left.</p>
-    </div>
-""", unsafe_allow_html=True)
-
 # --- Session state ---
 if "view" not in st.session_state:
     st.session_state.view = "map"
