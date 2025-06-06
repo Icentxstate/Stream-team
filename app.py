@@ -13,7 +13,7 @@ from branca.colormap import StepColormap
 from streamlit_folium import st_folium
 
 # --- UI config ---
-st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🌊", layout="wide")
+st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🗺️", layout="wide")
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=PT+Serif&display=swap');
@@ -191,7 +191,6 @@ basemap_tiles = {
 
 # --- Main View ---
 if st.session_state.view == "map":
-    st.title("🌍 Texas Coastal Monitoring Map")
     m = folium.Map(
         location=[(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2],
         tiles=basemap_tiles[basemap_option]["tiles"],
