@@ -260,6 +260,23 @@ elif st.session_state.view == "details":
         ax.legend()
         st.pyplot(fig)
 
+        # Scatter Plot: Parameter vs Parameter
+if len(selected) == 2:
+    st.subheader(f"📌 Scatter Plot: {selected[0]} vs {selected[1]}")
+
+    scatter_df = plot_df.dropna(subset=selected)
+
+    fig3, ax3 = plt.subplots(figsize=(8, 6))
+    ax3.scatter(scatter_df[selected[0]], scatter_df[selected[1]], alpha=0.7, color="#2563eb")
+    ax3.set_xlabel(selected[0])
+    ax3.set_ylabel(selected[1])
+    ax3.set_title("Parameter Correlation")
+    ax3.grid(True)
+
+    st.pyplot(fig3)
+elif len(selected) > 2:
+    st.info("⚠️ Scatter plot is only available when exactly two parameters are selected.")
+       
         st.subheader("📊 Summary Statistics")
         st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
 
