@@ -270,6 +270,10 @@ elif st.session_state.view == "details":
             .dropna(how='all')
         )
 
+    ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
+    subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
+    selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
+    
         # --- Scatter Plot ---
     if len(selected) >= 2:
         st.subheader("📌 Scatter Plot")
