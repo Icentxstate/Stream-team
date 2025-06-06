@@ -235,7 +235,7 @@ if st.session_state.view == "map":
             st.session_state.selected_point = f"{lat},{lon}"
             st.session_state.view = "details"
             st.rerun()
-
+#########------------------------------ADD-----------------------------
 elif st.session_state.view == "details":
     coords = st.session_state.selected_point
     lat, lon = map(float, coords.split(","))
@@ -259,7 +259,13 @@ elif st.session_state.view == "details":
             .dropna(how='all')
         )
 
-        tab1, tab2, tab3 = st.tabs(["📈 Time Series", "📉 Scatter Plot", "📊 Stats + Correlation"])
+        # Separate tabs for each analysis
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📈 Time Series", 
+            "📉 Scatter Plot", 
+            "📊 Summary Statistics", 
+            "🧮 Correlation Heatmap"
+        ])
 
         # --- Tab 1: Time Series ---
         with tab1:
@@ -303,14 +309,17 @@ elif st.session_state.view == "details":
             else:
                 st.info("Not enough data to generate scatter plot.")
 
-        # --- Tab 3: Summary + Correlation ---
+        # --- Tab 3: Summary Statistics ---
         with tab3:
             st.subheader("📊 Summary Statistics")
-            st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
+            stats = plot_df.describe().T
+            st.dataframe(stats.style.format("{:.2f}"))
 
-            csv_stats = plot_df.describe().T.to_csv().encode("utf-8")
+            csv_stats = stats.to_csv().encode("utf-8")
             st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
 
+        # --- Tab 4: Correlation Heatmap ---
+        with tab4:
             st.subheader("🧮 Correlation Heatmap")
             corr = plot_df.corr()
             if not corr.empty:
