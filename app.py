@@ -274,30 +274,26 @@ elif st.session_state.view == "details":
         st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
 
         # --- Scatter Plot ---
-        # --- Scatter Plot ---
-if not ts_df.empty:
-    st.subheader("📌 Scatter Plot")
-    all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
-    x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
-    y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
-    
-    scatter_df = (
+    if not ts_df.empty:
+        st.subheader("📌 Scatter Plot")
+        all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
+        x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
+        y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
+            scatter_df = (
         ts_df[ts_df["CharacteristicName"].isin([x_var, y_var])]
         .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
-        .dropna()
-    )
-
-    fig3, ax3 = plt.subplots()
-    ax3.scatter(scatter_df[x_var], scatter_df[y_var], c='steelblue', alpha=0.7)
-    ax3.set_xlabel(x_var)
-    ax3.set_ylabel(y_var)
-    ax3.set_title(f"{y_var} vs {x_var}")
-    st.pyplot(fig3)
-    
-    # Optional: Add download button
-    buf_scatter = BytesIO()
-    fig3.savefig(buf_scatter, format="png")
-    st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
+         .dropna()
+        )
+        fig3, ax3 = plt.subplots()
+        ax3.scatter(scatter_df[x_var], scatter_df[y_var], c='steelblue', alpha=0.7)
+        ax3.set_xlabel(x_var)
+        ax3.set_ylabel(y_var)
+        ax3.set_title(f"{y_var} vs {x_var}")
+        st.pyplot(fig3)
+        # Optional: Add download button
+        buf_scatter = BytesIO()
+        fig3.savefig(buf_scatter, format="png")
+        st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
         
         #####------ Summary Statistics----
         st.subheader("📊 Summary Statistics")
