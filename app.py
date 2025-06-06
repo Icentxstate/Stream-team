@@ -272,12 +272,19 @@ elif st.session_state.view == "details":
         )
 
         # Separate tabs for each analysis
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "📈 Time Series", 
-            "📉 Scatter Plot", 
-            "📊 Summary Statistics", 
-            "🧮 Correlation Heatmap"
-        ])
+
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+    "📈 Time Series", 
+    "📉 Scatter Plot", 
+    "📊 Summary Statistics", 
+    "🧮 Correlation Heatmap",
+    "📦 Seasonal Boxplot",
+    "📐 Trend Analysis",
+    "💧 WQI",
+    "🗺️ Spatio-Temporal Heatmap",
+    "🚨 Anomaly Detection",
+    "📍 Clustering"
+])
 
         # --- Tab 1: Time Series ---
         with tab1:
@@ -343,6 +350,274 @@ elif st.session_state.view == "details":
     else:
         st.warning("⚠️ Please select at least one parameter to analyze.")
 
+        # --- Tab 5: Seasonal Boxplot ---
+        with tab5:
+            st.subheader("📦 Seasonal Boxplot")
 
+            def get_season(month):
+                if month in [12, 1, 2]:
+                    return "Winter"
+                elif month in [3, 4, 5]:
+                    return "Spring"
+                elif month in [6, 7, 8]:
+                    return "Summer"
+                else:
+                    return "Fall"
 
+            seasonal_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+            seasonal_df["Season"] = seasonal_df["ActivityStartDate"].dt.month.apply(get_season)
+
+            if not seasonal_df.empty:
+                fig5, ax5 = plt.subplots(figsize=(10, 5))
+                sns.boxplot(
+                    x="Season", 
+                    y="ResultMeasureValue", 
+                    hue="CharacteristicName", 
+                    data=seasonal_df,
+                    palette="Set2"
+                )
+                ax5.set_title("Seasonal Distribution")
+                ax5.set_ylabel("Value")
+                st.pyplot(fig5)
+            else:
+                st.info("Not enough data to generate seasonal boxplot.")
+
+        # --- Tab 6: Trend Analysis (Mann-Kendall) ---
+        with tab6:
+            st.subheader("📐 Mann-Kendall Trend Test")
+
+            try:
+                import pymannkendall as mk
+            except ImportError:
+                st.error("Please install 'pymannkendall' using `pip install pymannkendall`.")
+                st.stop()
+
+            trend_results = []
+
+            for param in selected:
+                series = (
+                    ts_df[ts_df["CharacteristicName"] == param]
+                    .sort_values("ActivityStartDate")
+                    .set_index("ActivityStartDate")["ResultMeasureValue"]
+                    .dropna()
+                )
+                if len(series) >= 8:
+                    result = mk.original_test(series)
+                    trend_results.append({
+                        "Parameter": param,
+                        "Trend": result.trend,
+                        "p-value": result.p,
+                        "Tau": result.Tau,
+                        "S": result.S,
+                        "n": result.n
+                    })
+                else:
+                    trend_results.append({
+                        "Parameter": param,
+                        "Trend": "Insufficient Data",
+                        "p-value": None,
+                        "Tau": None,
+                        "S": None,
+                        "n": len(series)
+                    })
+
+            trend_df = pd.DataFrame(trend_results)
+            st.dataframe(trend_df.style.format({
+                "p-value": "{:.4f}",
+                "Tau": "{:.2f}"
+            }))
+
+            csv_trend = trend_df.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
+
+        # --- Tab 7: Water Quality Index (WQI) ---
+        with tab7:
+            st.subheader("💧 Water Quality Index (WQI)")
+
+            wqi_df = ts_df.copy()
+            parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
+
+            selected_wqi_params = st.multiselect("🧪 Select parameters for WQI", parameters, default=parameters[:3])
+
+            if selected_wqi_params:
+                st.markdown("### ⚖️ Assign weights (total should sum to 1):")
+                weights = {}
+                total_weight = 0.0
+                for param in selected_wqi_params:
+                    w = st.slider(f"Weight for {param}", 0.0, 1.0, 1.0 / len(selected_wqi_params), 0.05, key=f"w_{param}")
+                    weights[param] = w
+                    total_weight += w
+
+                if abs(total_weight - 1.0) > 0.01:
+                    st.warning("⚠️ Total weights must sum to 1. Adjust sliders.")
+                else:
+                    norm_df = pd.DataFrame()
+
+                    for param in selected_wqi_params:
+                        sub = wqi_df[wqi_df["CharacteristicName"] == param].copy()
+                        sub = sub[["ActivityStartDate", "ResultMeasureValue"]].dropna().copy()
+                        sub = sub.set_index("ActivityStartDate").resample("M").mean().reset_index()
+                        min_val = sub["ResultMeasureValue"].min()
+                        max_val = sub["ResultMeasureValue"].max()
+                        sub["Normalized"] = 100 * (sub["ResultMeasureValue"] - min_val) / (max_val - min_val + 1e-6)
+                        sub["Weighted"] = sub["Normalized"] * weights[param]
+                        sub["Parameter"] = param
+                        norm_df = pd.concat([norm_df, sub])
+
+                    wqi_monthly = norm_df.groupby("ActivityStartDate")["Weighted"].sum().reset_index()
+                    wqi_monthly["WQI Category"] = pd.cut(
+                        wqi_monthly["Weighted"],
+                        bins=[0, 25, 50, 75, 100],
+                        labels=["Poor", "Moderate", "Good", "Excellent"]
+                    )
+
+                    st.line_chart(wqi_monthly.set_index("ActivityStartDate")["Weighted"])
+
+                    st.dataframe(wqi_monthly)
+
+                    csv_wqi = wqi_monthly.to_csv(index=False).encode("utf-8")
+                    st.download_button("💾 Download WQI Data", data=csv_wqi, file_name="wqi_results.csv")
+            else:
+                st.info("Please select at least one parameter.")
+        # --- Tab 8: Spatio-Temporal Heatmap ---
+        with tab8:
+            st.subheader("🗺️ Spatial-Temporal Heatmap")
+
+            param_options = sorted(ts_df["CharacteristicName"].dropna().unique())
+            selected_param_ht = st.selectbox("Select Parameter", param_options, key="heatmap_param")
+
+            heat_df = ts_df[ts_df["CharacteristicName"] == selected_param_ht].copy()
+            heat_df["YearMonth"] = heat_df["ActivityStartDate"].dt.to_period("M").astype(str)
+            months_avail = sorted(heat_df["YearMonth"].dropna().unique())
+
+            selected_month = st.selectbox("Select Month", months_avail, key="heatmap_month")
+
+            heat_month_df = heat_df[heat_df["YearMonth"] == selected_month]
+
+            if heat_month_df.empty:
+                st.warning("⚠️ No data available for this month.")
+            else:
+                avg_vals = heat_month_df.groupby("StationKey").agg({
+                    "ResultMeasureValue": "mean",
+                    "Latitude": "first",
+                    "Longitude": "first"
+                }).reset_index()
+
+                min_val = avg_vals["ResultMeasureValue"].min()
+                max_val = avg_vals["ResultMeasureValue"].max()
+                colormap_ht = StepColormap(
+                    colors=['#3288bd', '#99d8c9', '#e6f598', '#fee08b', '#f46d43', '#d53e4f'],
+                    index=np.linspace(min_val, max_val, 6),
+                    vmin=min_val,
+                    vmax=max_val
+                )
+
+                m_ht = folium.Map(
+                    location=[avg_vals["Latitude"].mean(), avg_vals["Longitude"].mean()],
+                    zoom_start=10
+                )
+
+                for _, row in avg_vals.iterrows():
+                    folium.CircleMarker(
+                        location=[row["Latitude"], row["Longitude"]],
+                        radius=6,
+                        color=colormap_ht(row["ResultMeasureValue"]),
+                        fill=True,
+                        fill_opacity=0.85,
+                        popup=f"{selected_param_ht}: {row['ResultMeasureValue']:.2f}"
+                    ).add_to(m_ht)
+
+                colormap_ht.add_to(m_ht)
+                st_folium(m_ht, height=600, width=None)
+        # --- Tab 9: Anomaly Detection ---
+        with tab9:
+            st.subheader("🚨 Anomaly Detection (IQR Method)")
+
+            selected_param_anom = st.selectbox("Select parameter for anomaly check", subparams, key="anom_param")
+
+            anomaly_df = ts_df[ts_df["CharacteristicName"] == selected_param_anom].copy()
+            anomaly_df = anomaly_df.sort_values("ActivityStartDate")
+            anomaly_df = anomaly_df[["ActivityStartDate", "ResultMeasureValue"]].dropna()
+
+            if len(anomaly_df) < 8:
+                st.warning("⚠️ Not enough data points.")
+            else:
+                Q1 = anomaly_df["ResultMeasureValue"].quantile(0.25)
+                Q3 = anomaly_df["ResultMeasureValue"].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+
+                anomaly_df["Anomaly"] = ((anomaly_df["ResultMeasureValue"] < lower_bound) |
+                                         (anomaly_df["ResultMeasureValue"] > upper_bound))
+
+                st.markdown(f"**Anomaly Thresholds:** Lower = {lower_bound:.2f}, Upper = {upper_bound:.2f}")
+                st.write(f"🔴 {anomaly_df['Anomaly'].sum()} anomalies detected out of {len(anomaly_df)} records.")
+
+                fig_anom, ax_anom = plt.subplots(figsize=(10, 5))
+                ax_anom.plot(anomaly_df["ActivityStartDate"], anomaly_df["ResultMeasureValue"], label="Values", marker='o')
+                ax_anom.scatter(anomaly_df[anomaly_df["Anomaly"]]["ActivityStartDate"],
+                                anomaly_df[anomaly_df["Anomaly"]]["ResultMeasureValue"],
+                                color='red', label="Anomalies", zorder=5)
+                ax_anom.axhline(lower_bound, color='orange', linestyle='--', label="Lower Bound")
+                ax_anom.axhline(upper_bound, color='orange', linestyle='--', label="Upper Bound")
+                ax_anom.legend()
+                ax_anom.set_ylabel("Value")
+                ax_anom.set_title(f"Anomaly Detection for {selected_param_anom}")
+                st.pyplot(fig_anom)
+
+                st.dataframe(anomaly_df)
+
+                csv_anom = anomaly_df.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Download Anomaly Table", data=csv_anom, file_name="anomaly_results.csv")
+        # --- Tab 10: Clustering ---
+        with tab10:
+            st.subheader("📍 Clustering Stations (KMeans)")
+
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.cluster import KMeans
+
+            cluster_params = st.multiselect("Select parameters for clustering", subparams, default=subparams[:3])
+
+            if len(cluster_params) < 2:
+                st.warning("Please select at least two parameters for clustering.")
+            else:
+                cluster_df = ts_df[ts_df["CharacteristicName"].isin(cluster_params)].copy()
+                pivot_df = (
+                    cluster_df
+                    .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
+                    .mean()
+                    .unstack()
+                    .dropna()
+                )
+
+                scaler = StandardScaler()
+                X_scaled = scaler.fit_transform(pivot_df)
+
+                k = st.slider("Select number of clusters (k)", 2, 6, 3)
+                kmeans = KMeans(n_clusters=k, random_state=0)
+                labels = kmeans.fit_predict(X_scaled)
+                pivot_df["Cluster"] = labels
+                pivot_df["Latitude"] = pivot_df.index.map(lambda x: float(x.split(",")[0]))
+                pivot_df["Longitude"] = pivot_df.index.map(lambda x: float(x.split(",")[1]))
+
+                st.write(pivot_df[["Cluster"] + cluster_params])
+
+                # Visualize on map
+                cmap = plt.cm.get_cmap("tab10", k)
+                m_cluster = folium.Map(location=[pivot_df["Latitude"].mean(), pivot_df["Longitude"].mean()], zoom_start=9)
+
+                for _, row in pivot_df.iterrows():
+                    folium.CircleMarker(
+                        location=[row["Latitude"], row["Longitude"]],
+                        radius=7,
+                        color=f"#{int(cmap(row['Cluster'])[0]*255):02x}{int(cmap(row['Cluster'])[1]*255):02x}{int(cmap(row['Cluster'])[2]*255):02x}",
+                        fill=True,
+                        fill_opacity=0.9,
+                        popup=f"Cluster: {row['Cluster']}"
+                    ).add_to(m_cluster)
+
+                st_folium(m_cluster, height=600)
+
+                csv_clust = pivot_df.reset_index().to_csv(index=False).enc
 
