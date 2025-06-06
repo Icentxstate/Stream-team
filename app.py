@@ -90,13 +90,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 📌 Orange Welcome Card
-st.markdown("""
-    <div style='background-color:#fef3e2;padding:1.5rem 2rem;border-left:5px solid #cc4b00;border-radius:5px;margin-bottom:1rem;'>
-        <h2 style='color:#cc4b00;margin-bottom:0.5rem;'>Welcome to the Cypress Creek Water Dashboard</h2>
-        <p style='color:#333333;font-size:16px;'>Explore real-time water quality trends across the region. Click on any station to view historical measurements and statistics. Customize the view using the sidebar on the left.</p>
-    </div>
-""", unsafe_allow_html=True)
+# 📌 Orange Welcome Card (only on map view)
+if st.session_state.view == "map":
+    st.markdown("""
+        <div style='background-color:#fef3e2;padding:1.5rem 2rem;border-left:5px solid #cc4b00;border-radius:5px;margin-bottom:1rem;'>
+            <h2 style='color:#cc4b00;margin-bottom:0.5rem;'>Welcome to the Cypress Creek Water Dashboard</h2>
+            <p style='color:#333333;font-size:16px;'>Explore real-time water quality trends across the region. Click on any station to view historical measurements and statistics. Customize the view using the sidebar on the left.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
 
 # --- Session state ---
 if "view" not in st.session_state:
