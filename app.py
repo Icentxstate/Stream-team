@@ -258,67 +258,70 @@ elif st.session_state.view == "details":
             .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
             .dropna(how='all')
         )
-        
-        #-------Time Series-----
-        st.subheader("📈 Time Series")
-        fig, ax = plt.subplots(figsize=(10, 5))
-        for col in plot_df.columns:
-            ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
-        ax.set_ylabel("Value")
-        ax.set_xlabel("Date")
-        ax.legend()
-        st.pyplot(fig)
-        # Download time series plot
-        buf_ts = BytesIO()
-        fig.savefig(buf_ts, format="png")
-        st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
 
-        # --- Scatter Plot ---
-# --- Scatter Plot ---
-if not ts_df.empty:
-    st.subheader("📌 Scatter Plot")
-    all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
-    x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
-    y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
+        tab1, tab2, tab3 = st.tabs(["📈 Time Series", "📉 Scatter Plot", "📊 Stats + Correlation"])
 
-    scatter_df = (
-        ts_df[ts_df["CharacteristicName"].isin([x_var, y_var])]
-        .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
-        .dropna()
-    )
+        # --- Tab 1: Time Series ---
+        with tab1:
+            st.subheader("📈 Time Series")
+            fig, ax = plt.subplots(figsize=(10, 5))
+            for col in plot_df.columns:
+                ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
+            ax.set_ylabel("Value")
+            ax.set_xlabel("Date")
+            ax.legend()
+            st.pyplot(fig)
 
-    fig3, ax3 = plt.subplots()
-    ax3.scatter(scatter_df[x_var], scatter_df[y_var], c='steelblue', alpha=0.7)
-    ax3.set_xlabel(x_var)
-    ax3.set_ylabel(y_var)
-    ax3.set_title(f"{y_var} vs {x_var}")
-    st.pyplot(fig3)
+            buf_ts = BytesIO()
+            fig.savefig(buf_ts, format="png")
+            st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
 
-    # Optional: Add download button
-    buf_scatter = BytesIO()
-    fig3.savefig(buf_scatter, format="png")
-    st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
+        # --- Tab 2: Scatter Plot ---
+        with tab2:
+            st.subheader("📉 Scatter Plot")
+            all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
+            x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
+            y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
 
-# --- Summary Statistics and Correlation ---
-if not plot_df.empty:
-    st.subheader("📊 Summary Statistics")
-    st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
+            scatter_df = (
+                ts_df[ts_df["CharacteristicName"].isin([x_var, y_var])]
+                .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+                .dropna()
+            )
 
-    # Download summary table
-    csv_stats = plot_df.describe().T.to_csv().encode("utf-8")
-    st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
+            if not scatter_df.empty:
+                fig3, ax3 = plt.subplots()
+                ax3.scatter(scatter_df[x_var], scatter_df[y_var], c='steelblue', alpha=0.7)
+                ax3.set_xlabel(x_var)
+                ax3.set_ylabel(y_var)
+                ax3.set_title(f"{y_var} vs {x_var}")
+                st.pyplot(fig3)
 
-    # Correlation Heatmap
-    st.subheader("🧮 Correlation Heatmap")
-    corr = plot_df.corr()
-    if not corr.empty:
-        fig2, ax2 = plt.subplots(figsize=(8, 6))
-        sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
-        st.pyplot(fig2)
+                buf_scatter = BytesIO()
+                fig3.savefig(buf_scatter, format="png")
+                st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
+            else:
+                st.info("Not enough data to generate scatter plot.")
+
+        # --- Tab 3: Summary + Correlation ---
+        with tab3:
+            st.subheader("📊 Summary Statistics")
+            st.dataframe(plot_df.describe().T.style.format("{:.2f}"))
+
+            csv_stats = plot_df.describe().T.to_csv().encode("utf-8")
+            st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
+
+            st.subheader("🧮 Correlation Heatmap")
+            corr = plot_df.corr()
+            if not corr.empty:
+                fig2, ax2 = plt.subplots(figsize=(8, 6))
+                sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
+                st.pyplot(fig2)
+            else:
+                st.info("Not enough data for correlation heatmap.")
     else:
-        st.info("Not enough data for correlation heatmap.")
-else:
-    st.warning("⚠️ No valid data available for statistics or correlation.")
+        st.warning("⚠️ Please select at least one parameter to analyze.")
+
 
 
 
