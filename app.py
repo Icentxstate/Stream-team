@@ -8,6 +8,7 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from io import BytesIO
 from branca.colormap import StepColormap
 from streamlit_folium import st_folium
 
