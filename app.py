@@ -91,7 +91,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 📌 Orange Welcome Card (only on map view)
-if st.session_state.view == "map":
+if "view" in st.session_state and st.session_state.view == "map":
     st.markdown("""
         <div style='background-color:#fef3e2;padding:1.5rem 2rem;border-left:5px solid #cc4b00;border-radius:5px;margin-bottom:1rem;'>
             <h2 style='color:#cc4b00;margin-bottom:0.5rem;'>Welcome to the Cypress Creek Water Dashboard</h2>
