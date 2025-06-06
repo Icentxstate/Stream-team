@@ -99,7 +99,6 @@ if st.session_state.view == "map":
         </div>
     """, unsafe_allow_html=True)
 
-
 # --- Session state ---
 if "view" not in st.session_state:
     st.session_state.view = "map"
