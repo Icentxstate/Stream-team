@@ -439,3 +439,68 @@ with tab6:
     else:
         st.warning("⚠️ Please select at least one parameter.")
 
+# --- Tab 7: WQI ---
+with tab7:
+    if selected:
+        st.subheader("💧 Water Quality Index (WQI)")
+
+        wqi_df = ts_df.copy()
+        parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
+
+        selected_wqi_params = st.multiselect("🧪 Select parameters for WQI", parameters, default=parameters[:3])
+
+        if selected_wqi_params:
+            st.markdown("### ⚖️ Assign weights (total should sum to 1):")
+            weights = {}
+            total_weight = 0.0
+            for param in selected_wqi_params:
+                w = st.slider(f"Weight for {param}", 0.0, 1.0, round(1.0 / len(selected_wqi_params), 2), 0.05, key=f"w_{param}")
+                weights[param] = w
+                total_weight += w
+
+            if abs(total_weight - 1.0) > 0.01:
+                st.warning("⚠️ Total weights must sum to 1. Adjust sliders.")
+            else:
+                norm_df = pd.DataFrame()
+
+                for param in selected_wqi_params:
+                    sub = wqi_df[wqi_df["CharacteristicName"] == param].copy()
+                    sub = sub[["ActivityStartDate", "ResultMeasureValue"]].dropna()
+
+                    if sub.empty or sub["ResultMeasureValue"].nunique() <= 1:
+                        st.warning(f"⚠️ Skipping {param} due to insufficient or constant data.")
+                        continue
+
+                    # Resample to monthly means
+                    sub = sub.set_index("ActivityStartDate").resample("M").mean().reset_index()
+
+                    min_val = sub["ResultMeasureValue"].min()
+                    max_val = sub["ResultMeasureValue"].max()
+                    if max_val - min_val == 0:
+                        sub["Normalized"] = 0
+                    else:
+                        sub["Normalized"] = 100 * (sub["ResultMeasureValue"] - min_val) / (max_val - min_val)
+
+                    sub["Weighted"] = sub["Normalized"] * weights[param]
+                    sub["Parameter"] = param
+                    norm_df = pd.concat([norm_df, sub], ignore_index=True)
+
+                if norm_df.empty:
+                    st.info("⚠️ No valid data available to compute WQI.")
+                else:
+                    wqi_monthly = norm_df.groupby("ActivityStartDate")["Weighted"].sum().reset_index()
+                    wqi_monthly["WQI Category"] = pd.cut(
+                        wqi_monthly["Weighted"],
+                        bins=[0, 25, 50, 75, 100],
+                        labels=["Poor", "Moderate", "Good", "Excellent"]
+                    )
+
+                    st.line_chart(wqi_monthly.set_index("ActivityStartDate")["Weighted"])
+                    st.dataframe(wqi_monthly)
+
+                    csv_wqi = wqi_monthly.to_csv(index=False).encode("utf-8")
+                    st.download_button("💾 Download WQI Data", data=csv_wqi, file_name="wqi_results.csv")
+        else:
+            st.info("Please select at least one parameter for WQI.")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
