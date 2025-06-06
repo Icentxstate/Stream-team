@@ -273,22 +273,22 @@ elif st.session_state.view == "details":
         st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
 
         # --- Scatter Plot ---
-        if len(selected) >= 2:
-            st.subheader("📌 Scatter Plot")
-            x_var = st.selectbox("X-axis Variable", selected, key="scatter_x")
-            y_var = st.selectbox("Y-axis Variable", [p for p in selected if p != x_var], key="scatter_y")
-            fig3, ax3 = plt.subplots()
-            ax3.scatter(plot_df[x_var], plot_df[y_var], c='steelblue', alpha=0.7)
-            ax3.set_xlabel(x_var)
-            ax3.set_ylabel(y_var)
-            ax3.set_title(f"{y_var} vs {x_var}")
-            st.pyplot(fig3)
+    if len(selected) >= 2:
+        st.subheader("📌 Scatter Plot")
+        x_var = st.selectbox("X-axis Variable", selected, key="scatter_x")
+        y_var = st.selectbox("Y-axis Variable", [p for p in selected if p != x_var], key="scatter_y")
+        fig3, ax3 = plt.subplots()
+        ax3.scatter(plot_df[x_var], plot_df[y_var], c='steelblue', alpha=0.7)
+        ax3.set_xlabel(x_var)
+        ax3.set_ylabel(y_var)
+        ax3.set_title(f"{y_var} vs {x_var}")
+        st.pyplot(fig3)
 
-            # Download scatter plot
-            from io import BytesIO
-            buf_scatter = BytesIO()
-            fig3.savefig(buf_scatter, format="png")
-            st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
+        # Download scatter plot
+        from io import BytesIO
+        buf_scatter = BytesIO()
+        fig3.savefig(buf_scatter, format="png")
+        st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
 
 
         st.subheader("📊 Summary Statistics")
