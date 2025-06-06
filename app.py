@@ -106,20 +106,20 @@ st.markdown("""
 # ... [unchanged code above remains here]
 
         # --- Section: Time Series ---
-        st.markdown('<div class="custom-box section1">', unsafe_allow_html=True)
-        st.subheader("📈 Time Series")
-        fig, ax = plt.subplots(figsize=(10, 5))
-        for col in plot_df.columns:
-            ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
-        ax.set_ylabel("Value")
-        ax.set_xlabel("Date")
-        ax.legend()
-        ax.grid(True)
-        st.pyplot(fig)
-        img_bytes = BytesIO()
-        fig.savefig(img_bytes, format="png")
-        st.download_button("📥 Download Time Series", data=img_bytes.getvalue(), file_name="time_series.png", mime="image/png")
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="custom-box section1">', unsafe_allow_html=True)
+    st.subheader("📈 Time Series")
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for col in plot_df.columns:
+        ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
+    ax.set_ylabel("Value")
+    ax.set_xlabel("Date")
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
+    img_bytes = BytesIO()
+    fig.savefig(img_bytes, format="png")
+    st.download_button("📥 Download Time Series", data=img_bytes.getvalue(), file_name="time_series.png", mime="image/png")
+    st.markdown('</div>', unsafe_allow_html=True)
 
         # --- Section: Scatter Plot ---
         if len(selected) == 2:
