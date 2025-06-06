@@ -248,10 +248,6 @@ elif st.session_state.view == "details":
             st.session_state.view = "map"
             st.rerun()
 
-    ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
-    subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
-    selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
-
 
         st.subheader("📈 Time Series")
         fig, ax = plt.subplots(figsize=(10, 5))
@@ -266,6 +262,13 @@ elif st.session_state.view == "details":
         buf_ts = BytesIO()
         fig.savefig(buf_ts, format="png")
         st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
+
+    if selected:
+        plot_df = (
+            ts_df[ts_df["CharacteristicName"].isin(selected)]
+            .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+            .dropna(how='all')
+        )
 
         # --- Scatter Plot ---
     if len(selected) >= 2:
