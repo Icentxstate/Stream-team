@@ -349,36 +349,39 @@ elif st.session_state.view == "details":
         st.warning("⚠️ Please select at least one parameter to analyze.")
 
         # --- Tab 5: Seasonal Boxplot ---
-        with tab5:
-            st.subheader("📦 Seasonal Boxplot")
+with tab5:
+    if selected:
+        st.subheader("📆 Seasonal Boxplot")
 
-            def get_season(month):
-                if month in [12, 1, 2]:
-                    return "Winter"
-                elif month in [3, 4, 5]:
-                    return "Spring"
-                elif month in [6, 7, 8]:
-                    return "Summer"
-                else:
-                    return "Fall"
-
-            seasonal_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
-            seasonal_df["Season"] = seasonal_df["ActivityStartDate"].dt.month.apply(get_season)
-
-            if not seasonal_df.empty:
-                fig5, ax5 = plt.subplots(figsize=(10, 5))
-                sns.boxplot(
-                    x="Season", 
-                    y="ResultMeasureValue", 
-                    hue="CharacteristicName", 
-                    data=seasonal_df,
-                    palette="Set2"
-                )
-                ax5.set_title("Seasonal Distribution")
-                ax5.set_ylabel("Value")
-                st.pyplot(fig5)
+        def get_season(month):
+            if month in [12, 1, 2]:
+                return "Winter"
+            elif month in [3, 4, 5]:
+                return "Spring"
+            elif month in [6, 7, 8]:
+                return "Summer"
             else:
-                st.info("Not enough data to generate seasonal boxplot.")
+                return "Fall"
+
+        seasonal_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+        seasonal_df["Season"] = seasonal_df["ActivityStartDate"].dt.month.apply(get_season)
+
+        if not seasonal_df.empty:
+            fig5, ax5 = plt.subplots(figsize=(10, 5))
+            sns.boxplot(
+                x="Season", 
+                y="ResultMeasureValue", 
+                hue="CharacteristicName", 
+                data=seasonal_df,
+                palette="Set2"
+            )
+            ax5.set_title("Seasonal Distribution")
+            ax5.set_ylabel("Value")
+            st.pyplot(fig5)
+        else:
+            st.info("Not enough data to generate seasonal boxplot.")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
 
         # --- Tab 6: Trend Analysis (Mann-Kendall) ---
         with tab6:
