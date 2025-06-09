@@ -642,45 +642,70 @@ with tab9:
             st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies.csv")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+# --- Tab 9: Anomaly Detection ---
+with tab9:
+    if selected:
+        st.subheader("🚨 Anomaly Detection (Z-score)")
+        available_stations = ts_df["StationName"].dropna().unique().tolist()
+        selected_stations = st.multiselect("📍 Select stations to analyze", available_stations, default=available_stations[:5])
+
+        z_df = ts_df[
+            (ts_df["CharacteristicName"].isin(selected)) &
+            (ts_df["StationName"].isin(selected_stations))
+        ].copy()
+
+        z_df = z_df.dropna(subset=["ResultMeasureValue"])
+        z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
+            lambda x: (x - x.mean()) / x.std(ddof=0)
+        )
+        anomalies = z_df[np.abs(z_df["zscore"]) > 3]
+
+        st.write(f"🔍 Found {len(anomalies)} anomalies with |Z-score| > 3")
+        st.dataframe(anomalies[["ActivityStartDate", "CharacteristicName", "StationName", "ResultMeasureValue", "zscore"]])
+
+        csv_anom = anomalies.to_csv(index=False).encode("utf-8")
+        st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies.csv")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
 
 # --- Tab 10: Clustering ---
 with tab10:
     if selected:
         st.subheader("📍 Clustering (KMeans)")
-
         from sklearn.cluster import KMeans
 
-        # Allow user to select multiple stations
-        available_stations = ts_df["StationKey"].dropna().unique().tolist()
-        selected_stations = st.multiselect("📍 Select stations to include in clustering", available_stations, default=available_stations[:5])
+        available_stations = ts_df["StationName"].dropna().unique().tolist()
+        selected_stations = st.multiselect("📍 Select stations for clustering", available_stations, default=available_stations[:5])
 
-        cluster_df = ts_df[(ts_df["StationKey"].isin(selected_stations)) & 
-                           (ts_df["CharacteristicName"].isin(selected))].copy()
+        cluster_df = ts_df[
+            (ts_df["CharacteristicName"].isin(selected)) &
+            (ts_df["StationName"].isin(selected_stations))
+        ].copy()
 
         cluster_df = cluster_df.dropna(subset=["Latitude", "Longitude", "ResultMeasureValue"])
-        grouped = cluster_df.groupby("StationKey")[["Latitude", "Longitude"]].mean().reset_index()
 
-        num_points = len(grouped)
-        n_clusters = st.slider("Select number of clusters:", 2, min(10, num_points if num_points >= 2 else 2), 3)
-
-        if num_points < 2:
-            st.warning("⚠️ Not enough stations selected with valid coordinates to perform clustering.")
-        elif num_points < n_clusters:
-            st.warning(f"⚠️ Selected only {num_points} station(s). Reduce number of clusters to ≤ {num_points}.")
+        if cluster_df.empty:
+            st.info("No data available for clustering.")
         else:
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
-            grouped["Cluster"] = kmeans.labels_
+            grouped = cluster_df.groupby("StationKey")["ResultMeasureValue"].mean().reset_index()
+            grouped[["Latitude", "Longitude"]] = grouped["StationKey"].str.split(",", expand=True).astype(float)
 
-            fig_cluster, ax_cluster = plt.subplots()
-            sns.scatterplot(data=grouped, x="Longitude", y="Latitude", hue="Cluster", palette="tab10", s=80)
-            ax_cluster.set_title("Clustered Monitoring Stations")
-            st.pyplot(fig_cluster)
+            n_clusters = st.slider("Select number of clusters:", 2, 10, 4)
 
-            from io import BytesIO
-            buf_clust = BytesIO()
-            fig_cluster.savefig(buf_clust, format="png")
-            st.download_button("💾 Download Cluster Map", data=buf_clust.getvalue(), file_name="clustering_map.png")
+            if len(grouped) < n_clusters:
+                st.error(f"⚠️ Not enough points to form {n_clusters} clusters. You only have {len(grouped)} stations.")
+            else:
+                kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
+                grouped["Cluster"] = kmeans.labels_
+
+                fig_cluster, ax_cluster = plt.subplots()
+                sns.scatterplot(data=grouped, x="Longitude", y="Latitude", hue="Cluster", palette="tab10", s=80)
+                ax_cluster.set_title("Clustered Monitoring Stations")
+                st.pyplot(fig_cluster)
+
+                buf_clust = BytesIO()
+                fig_cluster.savefig(buf_clust, format="png")
+                st.download_button("💾 Download Cluster Map", data=buf_clust.getvalue(), file_name="clustering_map.png")
     else:
         st.warning("⚠️ Please select at least one parameter.")
-
 
