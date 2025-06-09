@@ -624,3 +624,47 @@ with tab8:
         st.warning("⚠️ Please select at least one parameter.")
 
 
+# --- Tab 9: Anomaly Detection ---
+with tab9:
+    if selected:
+        st.subheader("🚨 Anomaly Detection (Z-score)")
+        z_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+        z_df = z_df.dropna(subset=["ResultMeasureValue"])
+
+        z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
+            lambda x: (x - x.mean()) / x.std(ddof=0)
+        )
+        anomalies = z_df[np.abs(z_df["zscore"]) > 3]
+
+        st.write(f"🔍 Found {len(anomalies)} anomalies with |Z-score| > 3")
+        st.dataframe(anomalies[["ActivityStartDate", "CharacteristicName", "ResultMeasureValue", "zscore"]])
+
+        csv_anom = anomalies.to_csv(index=False).encode("utf-8")
+        st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies.csv")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
+
+# --- Tab 10: Clustering ---
+with tab10:
+    if selected:
+        st.subheader("📍 Clustering (KMeans)")
+        from sklearn.cluster import KMeans
+        cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+        cluster_df = cluster_df.dropna(subset=["Latitude", "Longitude", "ResultMeasureValue"])
+        grouped = cluster_df.groupby("StationKey")["ResultMeasureValue"].mean().reset_index()
+        grouped[["Latitude", "Longitude"]] = grouped["StationKey"].str.split(",", expand=True).astype(float)
+
+        n_clusters = st.slider("Select number of clusters:", 2, 10, 4)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
+        grouped["Cluster"] = kmeans.labels_
+
+        fig_cluster, ax_cluster = plt.subplots()
+        sns.scatterplot(data=grouped, x="Longitude", y="Latitude", hue="Cluster", palette="tab10", s=80)
+        ax_cluster.set_title("Clustered Monitoring Stations")
+        st.pyplot(fig_cluster)
+
+        buf_clust = BytesIO()
+        fig_cluster.savefig(buf_clust, format="png")
+        st.download_button("💾 Download Cluster Map", data=buf_clust.getvalue(), file_name="clustering_map.png")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
