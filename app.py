@@ -623,7 +623,6 @@ with tab8:
     else:
         st.warning("⚠️ Please select at least one parameter.")
 
-
 # --- Tab 9: Anomaly Detection ---
 with tab9:
     if selected:
@@ -649,22 +648,32 @@ with tab10:
     if selected:
         st.subheader("📍 Clustering (KMeans)")
         from sklearn.cluster import KMeans
+
         cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
         cluster_df = cluster_df.dropna(subset=["Latitude", "Longitude", "ResultMeasureValue"])
         grouped = cluster_df.groupby("StationKey")["ResultMeasureValue"].mean().reset_index()
-        grouped[["Latitude", "Longitude"]] = grouped["StationKey"].str.split(",", expand=True).astype(float)
+
+        try:
+            grouped[["Latitude", "Longitude"]] = grouped["StationKey"].str.split(",", expand=True).astype(float)
+        except Exception as e:
+            st.error("🚫 Could not extract coordinates from StationKey. Make sure it contains 'lat,lon' format.")
+            st.stop()
 
         n_clusters = st.slider("Select number of clusters:", 2, 10, 4)
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
-        grouped["Cluster"] = kmeans.labels_
 
-        fig_cluster, ax_cluster = plt.subplots()
-        sns.scatterplot(data=grouped, x="Longitude", y="Latitude", hue="Cluster", palette="tab10", s=80)
-        ax_cluster.set_title("Clustered Monitoring Stations")
-        st.pyplot(fig_cluster)
+        if len(grouped) < n_clusters:
+            st.error(f"⚠️ Not enough points to form {n_clusters} clusters. Please select fewer clusters.")
+        else:
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
+            grouped["Cluster"] = kmeans.labels_
 
-        buf_clust = BytesIO()
-        fig_cluster.savefig(buf_clust, format="png")
-        st.download_button("💾 Download Cluster Map", data=buf_clust.getvalue(), file_name="clustering_map.png")
+            fig_cluster, ax_cluster = plt.subplots()
+            sns.scatterplot(data=grouped, x="Longitude", y="Latitude", hue="Cluster", palette="tab10", s=80)
+            ax_cluster.set_title("Clustered Monitoring Stations")
+            st.pyplot(fig_cluster)
+
+            buf_clust = BytesIO()
+            fig_cluster.savefig(buf_clust, format="png")
+            st.download_button("💾 Download Cluster Map", data=buf_clust.getvalue(), file_name="clustering_map.png")
     else:
         st.warning("⚠️ Please select at least one parameter.")
