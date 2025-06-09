@@ -663,7 +663,6 @@ with tab7:
         fig.savefig(buf7, format="png")
         st.download_button("💾 Download WQI Plot", data=buf7.getvalue(), file_name="wqi_plot.png")
 
-        st.download_button("💾 Download WQI Plot", da_
 with tab8:
     st.subheader("🗺️ Spatio-Temporal Heatmap")
 
