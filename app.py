@@ -252,34 +252,29 @@ elif st.session_state.view == "details":
     coords = st.session_state.selected_point
     lat, lon = map(float, coords.split(","))
     st.title("📊 Station Analysis")
+    st.write(f"📍 Coordinates: {lat:.5f}, {lon:.5f}")
 
-st.write(f"📍 Coordinates: {lat:.5f}, {lon:.5f}")
+    with st.form("back_form"):
+        submitted = st.form_submit_button("🔙 Back to Map")
+        if submitted:
+            st.session_state.view = "map"
+            st.rerun()
 
-with st.form("back_form"):
-    submitted = st.form_submit_button("🔙 Back to Map")
-    if submitted:
-        st.session_state.view = "map"
-        st.rerun()
+    ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
+    subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
+    selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
-ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
-subparams = sorted(ts_df["CharacteristicName"].dropna().unique())  # تعریف درست
-selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])  # حالا بدون خطا
+    # ✅ Always define tabs first
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+        "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
+        "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
+        "🚨 Anomaly Detection", "📍 Clustering"
+    ])
 
-
-    # ✅ همیشه تب‌ها را تعریف کن (حتی اگر selected خالی باشد)
-selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
-
-# ✅ همیشه تب‌ها را تعریف کن (قبل از بررسی if)
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-    "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
-    "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
-    "🚨 Anomaly Detection", "📍 Clustering"
-])
-
-if not selected:
-    for tab in [tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10]:
-        with tab:
-            st.warning("⚠️ Please select at least one parameter to display results.")
+    if not selected:
+        for tab in [tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10]:
+            with tab:
+                st.warning("⚠️ Please select at least one parameter to display results.")
 else:
         # ✅ Tab 1
         # Tab 1: Time Series
