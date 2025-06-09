@@ -657,16 +657,23 @@ with tab9:
         st.warning("⚠️ Please select at least one parameter.")
 
 #-------------------------------10
+
 with tab10:
     if selected:
-        st.subheader("📍 KMeans Clustering of Stations")
+        st.subheader("📍 KMeans Clustering of Selected Stations")
 
         cluster_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
         cluster_df = cluster_df.dropna(subset=["ResultMeasureValue"])
 
-        # Pivot for clustering: rows=StationKey, cols=parameters, values=mean
+        # انتخاب ایستگاه‌ها
+        all_names = cluster_df["Name"].dropna().unique().tolist()
+        selected_names = st.multiselect("📍 Select stations for clustering", all_names, default=all_names[:5])
+
+        filtered = cluster_df[cluster_df["Name"].isin(selected_names)]
+
+        # Pivot: StationKey × Parameter → average value
         pivot = (
-            cluster_df
+            filtered
             .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
             .mean()
             .unstack()
@@ -674,51 +681,53 @@ with tab10:
         )
 
         if pivot.empty or pivot.shape[0] < 2:
-            st.info("Not enough data for clustering.")
+            st.info("❗ Not enough valid stations for clustering.")
         else:
             from sklearn.preprocessing import StandardScaler
             from sklearn.cluster import KMeans
+            from sklearn.decomposition import PCA
 
             num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
 
-            scaled_data = StandardScaler().fit_transform(pivot)
+            scaled = StandardScaler().fit_transform(pivot)
             kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-            clusters = kmeans.fit_predict(scaled_data)
+            clusters = kmeans.fit_predict(scaled)
 
             pivot["Cluster"] = clusters
             pivot.reset_index(inplace=True)
 
+            # Merge for info
             merged = pivot.merge(
                 df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
                 on="StationKey",
                 how="left"
             )
 
-            st.markdown("### 📊 Clustered Stations")
+            st.markdown("### 📋 Clustered Station Summary")
             st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
 
+            # Download
             csv_clus = merged.to_csv(index=False).encode("utf-8")
-            st.download_button("💾 Download Clustering Results", data=csv_clus, file_name="clustering_results.csv")
+            st.download_button("💾 Download Clustering Data", data=csv_clus, file_name="clustered_stations.csv")
 
-            # Optional scatter plot (PCA visualization)
+            # PCA Plot
             try:
-                from sklearn.decomposition import PCA
                 pca = PCA(n_components=2)
-                pca_result = pca.fit_transform(scaled_data)
+                pca_result = pca.fit_transform(scaled)
                 merged["PC1"] = pca_result[:, 0]
                 merged["PC2"] = pca_result[:, 1]
 
-                fig_c, ax_c = plt.subplots(figsize=(8, 6))
+                fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
                 for i in range(num_clusters):
-                    subset = merged[merged["Cluster"] == i]
-                    ax_c.scatter(subset["PC1"], subset["PC2"], label=f"Cluster {i}")
-                ax_c.set_title("KMeans Clustering (PCA View)")
-                ax_c.set_xlabel("PC1")
-                ax_c.set_ylabel("PC2")
-                ax_c.legend()
-                st.pyplot(fig_c)
+                    sub = merged[merged["Cluster"] == i]
+                    ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
+                ax_pca.set_title("PCA View of Clusters")
+                ax_pca.set_xlabel("Principal Component 1")
+                ax_pca.set_ylabel("Principal Component 2")
+                ax_pca.legend()
+                st.pyplot(fig_pca)
             except Exception as e:
-                st.info("PCA scatter plot could not be generated.")
+                st.warning("⚠️ PCA scatter plot could not be generated.")
     else:
         st.warning("⚠️ Please select at least one parameter.")
 
