@@ -350,9 +350,10 @@ with tab4:
         st.warning("⚠️ Please select at least one parameter.")
 
 # --- Tab 5: Seasonal Boxplot ---
+# --- Tab 5: Seasonal Boxplot ---
 with tab5:
     if selected:
-        st.subheader("📦 Seasonal Boxplot")
+        st.subheader("📦 Temporal Boxplots")
 
         def get_season(month):
             if month in [12, 1, 2]:
@@ -365,24 +366,53 @@ with tab5:
                 return "Fall"
 
         seasonal_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+        seasonal_df["Month"] = seasonal_df["ActivityStartDate"].dt.strftime("%b")
+        seasonal_df["Year"] = seasonal_df["ActivityStartDate"].dt.year
         seasonal_df["Season"] = seasonal_df["ActivityStartDate"].dt.month.apply(get_season)
 
+        box_type = st.radio("Select Time Grouping:", ["Season", "Month", "Year"], horizontal=True)
+
         if not seasonal_df.empty:
-            fig5, ax5 = plt.subplots(figsize=(10, 5))
-            sns.boxplot(
-                x="Season",
-                y="ResultMeasureValue",
-                hue="CharacteristicName",
-                data=seasonal_df,
-                palette="Set2"
-            )
-            ax5.set_title("Seasonal Distribution")
+            fig5, ax5 = plt.subplots(figsize=(12, 5))
+
+            if box_type == "Season":
+                sns.boxplot(
+                    x="Season",
+                    y="ResultMeasureValue",
+                    hue="CharacteristicName",
+                    data=seasonal_df,
+                    palette="Set2"
+                )
+                ax5.set_title("Seasonal Distribution")
+
+            elif box_type == "Month":
+                sns.boxplot(
+                    x="Month",
+                    y="ResultMeasureValue",
+                    hue="CharacteristicName",
+                    data=seasonal_df,
+                    palette="Set3",
+                    order=["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                )
+                ax5.set_title("Monthly Distribution")
+
+            else:  # Year
+                sns.boxplot(
+                    x="Year",
+                    y="ResultMeasureValue",
+                    hue="CharacteristicName",
+                    data=seasonal_df,
+                    palette="Set1"
+                )
+                ax5.set_title("Yearly Distribution")
+
             ax5.set_ylabel("Value")
             st.pyplot(fig5)
         else:
-            st.info("Not enough data to generate seasonal boxplot.")
+            st.info("Not enough data to generate temporal boxplots.")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
 
 # --- Tab 6: Trend Analysis (Mann-Kendall) ---
 with tab6:
