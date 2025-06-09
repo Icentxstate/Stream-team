@@ -277,7 +277,7 @@ elif st.session_state.view == "details":
             "📉 Scatter Plot",                   # Tab 2: نمودار پراکندگی بین دو پارامتر
             "📊 Summary Statistics",             # Tab 3: جدول آمار توصیفی
             "🧮 Correlation Heatmap",            # Tab 4: ماتریس همبستگی بین پارامترها
-            "📦 Seasonal Boxplot",               # Tab 5: جعبه نمودار برای تحلیل فصلی
+            "📦 Boxplot",               # Tab 5: جعبه نمودار برای تحلیل فصلی
             "📐 Trend Analysis",                 # Tab 6: آزمون روند زمانی Mann-Kendall
             "💧 WQI",                            # Tab 7: شاخص ترکیبی کیفیت آب (Water Quality Index)
             "🗺️ Spatio-Temporal Heatmap",       # Tab 8: نقشه حرارتی زمانی-مکانی
@@ -350,7 +350,6 @@ with tab4:
         st.warning("⚠️ Please select at least one parameter.")
 
 # --- Tab 5: Seasonal Boxplot ---
-# --- Tab 5: Seasonal Boxplot ---
 with tab5:
     if selected:
         st.subheader("📦 Temporal Boxplots")
@@ -408,11 +407,16 @@ with tab5:
 
             ax5.set_ylabel("Value")
             st.pyplot(fig5)
+
+            from io import BytesIO
+            buf5 = BytesIO()
+            fig5.savefig(buf5, format="png")
+            st.download_button("💾 Download Boxplot Image", data=buf5.getvalue(), file_name=f"boxplot_{box_type.lower()}.png")
+
         else:
             st.info("Not enough data to generate temporal boxplots.")
     else:
         st.warning("⚠️ Please select at least one parameter.")
-
 
 # --- Tab 6: Trend Analysis (Mann-Kendall) ---
 with tab6:
