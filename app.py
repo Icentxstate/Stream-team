@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import folium
@@ -251,35 +251,18 @@ if st.session_state.view == "map":
 elif st.session_state.view == "details":
     coords = st.session_state.selected_point
     lat, lon = map(float, coords.split(","))
-
     st.title("📊 Station Analysis")
     st.write(f"📍 Coordinates: {lat:.5f}, {lon:.5f}")
 
-    # Back Button Form
     with st.form("back_form"):
         submitted = st.form_submit_button("🔙 Back to Map")
         if submitted:
             st.session_state.view = "map"
             st.rerun()
 
-    # Extract station data
     ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
     subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
-
-    # Styled container for multiselect and tabs
-    st.markdown("""
-    <div style='
-        background-color: #f6fcfc;
-        border-left: 5px solid #0c6e72;
-        padding: 1.5rem;
-        margin-top: 2rem;
-        margin-bottom: 2rem;
-        border-radius: 10px;
-    '>
-    """, unsafe_allow_html=True)
-
-    st.markdown("### 📉 Select parameters")
-    selected = st.multiselect("", subparams, default=subparams[:1])
+    selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
     if selected:
         plot_df = (
@@ -288,27 +271,11 @@ elif st.session_state.view == "details":
             .dropna(how='all')
         )
 
-        # Tabs
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
             "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
             "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
             "🚨 Anomaly Detection", "📍 Clustering"
         ])
-
-        # Example Tab: Time Series
-        with tab1:
-            st.subheader("📈 Time Series")
-            fig, ax = plt.subplots(figsize=(10, 5))
-            for col in plot_df.columns:
-                ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
-            ax.set_ylabel("Value")
-            ax.set_xlabel("Date")
-            ax.legend()
-            st.pyplot(fig)
-
-            buf_ts = BytesIO()
-            fig.savefig(buf_ts, format="png")
-            st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
 
         # Tab 1: Time Series
         with tab1:
@@ -436,7 +403,7 @@ elif st.session_state.view == "details":
             try:
                 import pymannkendall as mk
             except ImportError:
-                st.error("Please install 'pymannkendall' using `pip install pymannkendall`.")
+                st.error("Please install 'pymannkendall' using pip install pymannkendall.")
                 st.stop()
 
             trend_results = []
@@ -577,7 +544,7 @@ elif st.session_state.view == "details":
                     st.warning(f"No data to display heatmap for {param}")
                     continue
 
-                st.markdown(f"### 🔥 Heatmap for `{param}` ({time_mode})")
+                st.markdown(f"### 🔥 Heatmap for {param} ({time_mode})")
                 fig_hm, ax_hm = plt.subplots(figsize=(12, max(4, len(pivot) * 0.4)))
                 sns.heatmap(pivot, cmap="coolwarm", linewidths=0.5, linecolor="gray", ax=ax_hm)
                 ax_hm.set_title(f"{param} - {time_mode} Heatmap", fontsize=14)
@@ -682,9 +649,4 @@ elif st.session_state.view == "details":
                     ax_pca.legend()
                     st.pyplot(fig_pca)
                 except Exception:
-                    st.warning("⚠️ PCA scatter plot could not be generated.")       
-    else:
-        st.warning("⚠️ Please select at least one parameter.")
-
-    # Close the styled container
-    st.markdown("</div>", unsafe_allow_html=True)
+                    st.warning("⚠️ PCA scatter plot could not be generated.")        
