@@ -310,3 +310,72 @@ with tab1:
             st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
     except Exception as e:
         st.error(f"❌ Failed to generate time series plot: {e}")
+
+# ✅ Tab 2: Scatter Plot
+with tab2:
+    st.subheader("📉 Scatter Plot")
+
+    # دکمه راهنمای تب
+    if "show_help_tab2" not in st.session_state:
+        st.session_state["show_help_tab2"] = False
+
+    col1, col2 = st.columns([1, 9])
+    with col1:
+        if st.button("❔", key="toggle_help_tab2_button"):
+            st.session_state["show_help_tab2"] = not st.session_state["show_help_tab2"]
+
+    # توضیح کامل تب
+    if st.session_state["show_help_tab2"]:
+        with st.expander("📘 Tab Help", expanded=True):
+            st.markdown("""
+                📝 **Purpose:** Explore the relationship between two selected water quality parameters at the selected station.
+
+                📊 **What it shows:**
+                - Correlation or lack of relationship between two variables
+                - Outlier behaviors
+                - Patterns that may suggest causal or co-varying dynamics
+
+                🔍 **How to interpret:**
+                - A positive linear trend suggests both parameters increase together.
+                - A negative trend suggests one increases while the other decreases.
+                - Scatter without pattern indicates no strong relationship.
+
+                📌 **Use cases:**
+                - Discover interactions between parameters (e.g., temperature and DO)
+                - Identify outlier measurements
+                - Prepare for correlation or regression analysis
+            """)
+
+    try:
+        all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
+        x_var = st.selectbox("📌 X-axis Variable", all_params, key="scatter_x")
+        y_options = [p for p in all_params if p != x_var]
+        y_var = st.selectbox("📌 Y-axis Variable", y_options, key="scatter_y")
+
+        scatter_df = (
+            ts_df[ts_df["CharacteristicName"].isin([x_var, y_var])]
+            .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+            .dropna()
+        )
+
+        if scatter_df.empty:
+            st.info("⚠️ Not enough data to generate scatter plot.")
+        else:
+            fig2, ax2 = plt.subplots(figsize=(8, 5))
+            ax2.scatter(scatter_df[x_var], scatter_df[y_var], c='steelblue', alpha=0.7)
+            ax2.set_xlabel(x_var)
+            ax2.set_ylabel(y_var)
+            ax2.set_title(f"{y_var} vs {x_var}")
+            st.pyplot(fig2)
+
+            # دکمه دانلود نمودار پراکندگی
+            buf_scatter = BytesIO()
+            fig2.savefig(buf_scatter, format="png")
+            st.download_button(
+                "💾 Download Scatter Plot",
+                data=buf_scatter.getvalue(),
+                file_name="scatter_plot.png"
+            )
+    except Exception as e:
+        st.error(f"❌ Failed to generate scatter plot: {e}")
+
