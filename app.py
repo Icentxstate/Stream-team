@@ -14,7 +14,6 @@ from streamlit_folium import st_folium
 
 # --- UI config ---
 st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🗺️", layout="wide")
-
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=PT+Serif&display=swap');
@@ -88,17 +87,9 @@ st.markdown("""
     iframe {
         border: none;
     }
-
-    /* ✅ استایل تب‌ها: بزرگ‌تر و بولد */
-    .stTabs [role="tab"] {
-        font-size: 18px !important;
-        font-weight: bold !important;
-        color: #0c6e72 !important;
-    }
-
     </style>
 """, unsafe_allow_html=True)
-""", unsafe_allow_html=True)
+
 # 📌 Orange Welcome Card (only on map view)
 if "view" in st.session_state and st.session_state.view == "map":
     st.markdown("""
@@ -674,4 +665,4 @@ elif st.session_state.view == "details":
                     ax_pca.legend()
                     st.pyplot(fig_pca)
                 except Exception:
-                    st.warning("⚠️ PCA scatter plot could not be generated.")        
+                    st.warning("⚠️ PCA scatter plot could not be generated.")  
