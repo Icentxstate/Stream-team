@@ -644,6 +644,7 @@ with tab9:
         st.warning("⚠️ Please select at least one parameter.")
 
 # --- Tab 10: Clustering ---
+# --- Tab 10: Clustering ---
 with tab10:
     if selected:
         st.subheader("📍 Clustering (KMeans)")
@@ -662,7 +663,7 @@ with tab10:
         n_clusters = st.slider("Select number of clusters:", 2, 10, 4)
 
         if len(grouped) < n_clusters:
-            st.error(f"⚠️ Not enough points to form {n_clusters} clusters. Please select fewer clusters.")
+            st.error(f"⚠️ Not enough points to form {n_clusters} clusters. Please select fewer clusters (you have {len(grouped)}).")
         else:
             kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
             grouped["Cluster"] = kmeans.labels_
@@ -677,3 +678,4 @@ with tab10:
             st.download_button("💾 Download Cluster Map", data=buf_clust.getvalue(), file_name="clustering_map.png")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
