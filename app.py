@@ -249,9 +249,10 @@ if st.session_state.view == "map":
             st.rerun()
 #########------------------------------ADD-----------------------------
 elif st.session_state.view == "details":
-coords = st.session_state.selected_point
-lat, lon = map(float, coords.split(","))
-st.title("📊 Station Analysis")
+    coords = st.session_state.selected_point
+    lat, lon = map(float, coords.split(","))
+    st.title("📊 Station Analysis")
+
 st.write(f"📍 Coordinates: {lat:.5f}, {lon:.5f}")
 
 with st.form("back_form"):
