@@ -397,60 +397,65 @@ elif st.session_state.view == "details":
             else:
                 st.info("Not enough data to generate temporal boxplots.")
 
-# Tab 6: Mann-Kendall Trend Analysis
-with tab6:
-    st.subheader("📐 Mann-Kendall Trend Test")
-    try:
-        import pymannkendall as mk
-    except ImportError:
-        st.error("Please install 'pymannkendall' using pip install pymannkendall.")
-        st.stop()
+        # Tab 6: Mann-Kendall Trend Analysis
+        with tab6:
+            st.subheader("📐 Mann-Kendall Trend Test")
 
-    trend_results = []
-    for param in selected:
-        series = (
-            ts_df[ts_df["CharacteristicName"] == param]
-            .sort_values("ActivityStartDate")
-            .set_index("ActivityStartDate")["ResultMeasureValue"]
-            .dropna()
-        )
-        if len(series) >= 8:
             try:
-                result = mk.original_test(series)
-                trend_results.append({
-                    "Parameter": param,
-                    "Trend": result.trend,
-                    "p-value": result.p,
-                    "Tau": result.Tau,
-                    "S": result.S,
-                    "n": result.n
-                })
-            except Exception as e:
-                trend_results.append({
-                    "Parameter": param,
-                    "Trend": f"Error: {e}",
-                    "p-value": None,
-                    "Tau": None,
-                    "S": None,
-                    "n": len(series)
-                })
-        else:
-            trend_results.append({
-                "Parameter": param,
-                "Trend": "Insufficient Data",
-                "p-value": None,
-                "Tau": None,
-                "S": None,
-                "n": len(series)
-            })
+                import pymannkendall as mk
+            except ImportError:
+                st.error("Please install 'pymannkendall' using pip install pymannkendall.")
+                st.stop()
 
-    trend_df = pd.DataFrame(trend_results)
-    trend_df["p-value"] = trend_df["p-value"].apply(lambda x: f"{x:.4f}" if pd.notnull(x) else "NA")
-    trend_df["Tau"] = trend_df["Tau"].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "NA")
-    st.dataframe(trend_df)
+            trend_results = []
 
-    csv_trend = trend_df.to_csv(index=False).encode("utf-8")
-    st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
+            for param in selected:
+                series = (
+                    ts_df[ts_df["CharacteristicName"] == param]
+                    .sort_values("ActivityStartDate")
+                    .set_index("ActivityStartDate")["ResultMeasureValue"]
+                    .dropna()
+                )
+
+                if len(series) >= 8:
+                    try:
+                        result = mk.original_test(series)
+                        trend_results.append({
+                            "Parameter": param,
+                            "Trend": result.trend,
+                            "p-value": result.p,
+                            "Tau": result.Tau,
+                            "S": result.S,
+                            "n": result.n
+                        })
+                    except Exception as e:
+                        trend_results.append({
+                            "Parameter": param,
+                            "Trend": f"Error: {e}",
+                            "p-value": None,
+                            "Tau": None,
+                            "S": None,
+                            "n": len(series)
+                        })
+                else:
+                    trend_results.append({
+                        "Parameter": param,
+                        "Trend": "Insufficient Data",
+                        "p-value": None,
+                        "Tau": None,
+                        "S": None,
+                        "n": len(series)
+                    })
+
+            trend_df = pd.DataFrame(trend_results)
+            trend_df["p-value"] = trend_df["p-value"].apply(lambda x: f"{x:.4f}" if pd.notnull(x) else "NA")
+            trend_df["Tau"] = trend_df["Tau"].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "NA")
+
+            st.dataframe(trend_df)
+
+            csv_trend = trend_df.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
+
 
         # Tab 7: Water Quality Index (WQI)
         with tab7:
