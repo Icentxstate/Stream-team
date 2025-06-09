@@ -662,14 +662,19 @@ with tab10:
     if selected:
         st.subheader("📍 KMeans Clustering on Selected Parameters")
 
-        # فیلتر داده برای پارامترهای انتخاب‌شده
         cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
-        cluster_df = cluster_df.dropna(subset=["ResultMeasureValue"])
+        cluster_df = cluster_df.dropna(subset=["ResultMeasureValue", "Latitude", "Longitude"])
+
+        # اگر هیچ داده‌ای نبود
+        if cluster_df.empty:
+            st.warning("⚠️ No data available for clustering.")
+            st.stop()
 
         # انتخاب ایستگاه‌ها
         station_options = cluster_df["Name"].dropna().unique().tolist()
         selected_stations = st.multiselect("🏷️ Select stations to include", station_options, default=station_options[:5])
 
+        # فیلتر به ایستگاه‌های انتخاب‌شده
         cluster_df = cluster_df[cluster_df["Name"].isin(selected_stations)]
 
         # Pivot جدول به فرمت ایستگاه × پارامتر
@@ -678,20 +683,18 @@ with tab10:
             columns="CharacteristicName",
             values="ResultMeasureValue",
             aggfunc="mean"
-        )
+        ).dropna(how="all")
 
-        if pivot.isnull().all(axis=1).any() or pivot.empty:
-            st.warning("⚠️ Not enough data for clustering.")
+        if pivot.empty or pivot.shape[0] < 2:
+            st.warning("⚠️ Not enough valid stations for clustering.")
         else:
-            # حذف ایستگاه‌هایی که همه داده‌هایشان NaN است
-            pivot = pivot.dropna(how="all")
-
             # --- Standardize
             scaler = StandardScaler()
             scaled = scaler.fit_transform(pivot)
 
             # --- Select number of clusters
-            num_clusters = st.slider("🔢 Select number of clusters", min_value=2, max_value=min(10, len(pivot)), value=3)
+            max_clusters = min(10, pivot.shape[0])
+            num_clusters = st.slider("🔢 Select number of clusters", min_value=2, max_value=max_clusters, value=min(3, max_clusters))
 
             # --- KMeans Clustering
             kmeans = KMeans(n_clusters=num_clusters, random_state=42)
@@ -704,7 +707,6 @@ with tab10:
                 "Cluster": clusters
             }).merge(coord_df, on="Name", how="left")
 
-            # --- Show Results
             st.dataframe(merged)
 
             # --- Cluster Map
@@ -723,16 +725,11 @@ with tab10:
 
             st_folium(m_cluster, width=700, height=500)
 
-            # --- PCA Plot (optional)
+            # --- PCA Scatter Plot
             try:
-                pca_input = pivot.dropna()
-                if pca_input.shape[0] < 2 or pca_input.shape[1] < 2:
-                    st.warning("⚠️ Not enough data for PCA plot (at least 2 stations and 2 parameters are needed).")
-                else:
-                    pca_scaled = StandardScaler().fit_transform(pca_input)
+                if pivot.shape[1] >= 2:
                     pca = PCA(n_components=2)
-                    pca_result = pca.fit_transform(pca_scaled)
-
+                    pca_result = pca.fit_transform(scaled)
                     merged["PC1"] = pca_result[:, 0]
                     merged["PC2"] = pca_result[:, 1]
 
@@ -750,10 +747,12 @@ with tab10:
                     buf_pca = BytesIO()
                     fig_pca.savefig(buf_pca, format="png")
                     st.download_button("💾 Download PCA Plot", data=buf_pca.getvalue(), file_name="pca_clusters.png")
-
+                else:
+                    st.warning("⚠️ PCA plot skipped: Not enough parameters (at least 2 required).")
             except Exception as e:
                 st.warning(f"⚠️ PCA plot could not be generated: {e}")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
 
 
