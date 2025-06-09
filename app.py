@@ -278,37 +278,27 @@ elif st.session_state.view == "details":
                 st.warning("⚠️ Please select at least one parameter to display results.")
     else:
         # ✅ فقط اگر selected پر بود، بقیه تب‌ها رو پر کن
+        # Tab 1: Time Series
         with tab1:
             st.subheader("📈 Time Series")
+
+            plot_df = (
+                ts_df[ts_df["CharacteristicName"].isin(selected)]
+                .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+                .dropna()
+            )
 
             if "show_help_tab1" not in st.session_state:
                 st.session_state["show_help_tab1"] = False
 
             col1, col2 = st.columns([1, 9])
             with col1:
-                if st.button("❔", key="toggle_help_tab1"):
+                if st.button("❔", key="toggle_help_tab1_button"):
                     st.session_state["show_help_tab1"] = not st.session_state["show_help_tab1"]
 
             if st.session_state["show_help_tab1"]:
                 with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""
-                        📝 **Purpose:** Visualize how selected water quality parameters change over time at the selected station.
-
-                        📊 **What it shows:**
-                        - Long-term and short-term variations
-                        - Seasonal patterns or unexpected spikes
-                        - Overall trends (upward, downward, or stable)
-
-                        🔍 **How to interpret:**
-                        - Look for consistent increases or decreases that indicate a long-term trend.
-                        - Identify seasonal behavior (e.g., higher temperatures in summer).
-                        - Spot sudden spikes or drops, which may signal pollution events or measurement errors.
-
-                        📌 **Use cases:**
-                        - Evaluate the effectiveness of pollution control efforts.
-                        - Understand environmental impacts over time.
-                        - Identify critical times for monitoring or interventions.
-                    """)
+                    st.markdown("""...""")  # help content goes here
 
             try:
                 if plot_df.empty:
@@ -329,43 +319,53 @@ elif st.session_state.view == "details":
             except Exception as e:
                 st.error(f"❌ Failed to generate time series plot: {e}")
 
-############### tab2         
-        # Tab 4: Correlation Heatmap
-        with tab4:
-            st.subheader("🧮 Correlation Heatmap")
+        # Tab 2: Scatter Plot
+        with tab2:
+            st.subheader("📉 Scatter Plot")
 
-            if "show_help_tab4" not in st.session_state:
-                st.session_state["show_help_tab4"] = False
+            if "show_help_tab2" not in st.session_state:
+                st.session_state["show_help_tab2"] = False
 
             col1, col2 = st.columns([1, 9])
             with col1:
-                if st.button("❔", key="toggle_help_tab4"):
-                    st.session_state["show_help_tab4"] = not st.session_state["show_help_tab4"]
+                if st.button("❔", key="toggle_help_tab2_button"):
+                    st.session_state["show_help_tab2"] = not st.session_state["show_help_tab2"]
 
-            if st.session_state["show_help_tab4"]:
+            if st.session_state["show_help_tab2"]:
                 with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""...""")  # متن توضیحی Help
+                    st.markdown("""...""")  # help content goes here
+
+            all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
+            x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
+            y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
 
             try:
-                corr = plot_df.corr()
+                scatter_df = (
+                    ts_df[ts_df["CharacteristicName"].isin([x_var, y_var])]
+                    .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+                    .dropna()
+                )
 
-                if corr.empty:
-                    st.info("⚠️ Not enough data for correlation heatmap.")
+                if scatter_df.empty:
+                    st.info("⚠️ Not enough data to generate scatter plot.")
                 else:
-                    fig_corr, ax_corr = plt.subplots(figsize=(8, 6))
-                    sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax_corr)
-                    ax_corr.set_title("Correlation Heatmap")
-                    st.pyplot(fig_corr)
+                    fig2, ax2 = plt.subplots()
+                    ax2.scatter(scatter_df[x_var], scatter_df[y_var], c='steelblue', alpha=0.7)
+                    ax2.set_xlabel(x_var)
+                    ax2.set_ylabel(y_var)
+                    ax2.set_title(f"{y_var} vs {x_var}")
+                    st.pyplot(fig2)
 
-                    buf_corr = BytesIO()
-                    fig_corr.savefig(buf_corr, format="png", bbox_inches="tight")
+                    buf_scatter = BytesIO()
+                    fig2.savefig(buf_scatter, format="png")
                     st.download_button(
-                        "💾 Download Correlation Heatmap",
-                        data=buf_corr.getvalue(),
-                        file_name="correlation_heatmap.png"
+                        "💾 Download Scatter Plot",
+                        data=buf_scatter.getvalue(),
+                        file_name="scatter_plot.png"
                     )
             except Exception as e:
-                st.error(f"❌ Failed to generate correlation heatmap: {e}")
+                st.error(f"❌ Failed to generate scatter plot: {e}")
+
         # Tab 3: Summary Statistics
         with tab3:
             st.subheader("📊 Summary Statistics")
@@ -375,29 +375,12 @@ elif st.session_state.view == "details":
 
             col1, col2 = st.columns([1, 9])
             with col1:
-                if st.button("❔", key="toggle_help_tab3"):
+                if st.button("❔", key="toggle_help_tab3_button"):
                     st.session_state["show_help_tab3"] = not st.session_state["show_help_tab3"]
 
             if st.session_state["show_help_tab3"]:
                 with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""
-                        📝 **Purpose:** Provide quick numerical summaries for each selected parameter at the station.
-
-                        📊 **What it shows:**
-                        - Count of data points
-                        - Mean, standard deviation
-                        - Minimum, maximum, and quartiles
-
-                        🔍 **How to interpret:**
-                        - Use the mean and standard deviation to understand variability.
-                        - Check for skewed distributions using min/max and quartiles.
-                        - Identify if data is concentrated or dispersed.
-
-                        📌 **Use cases:**
-                        - Compare water quality levels across parameters
-                        - Spot abnormalities (e.g., unusually high variance)
-                        - Use as input for water quality indices or further statistical modeling
-                    """)
+                    st.markdown("""...""")  # help content goes here
 
             try:
                 if plot_df.empty:
@@ -424,30 +407,12 @@ elif st.session_state.view == "details":
 
             col1, col2 = st.columns([1, 9])
             with col1:
-                if st.button("❔", key="toggle_help_tab4"):
+                if st.button("❔", key="toggle_help_tab4_button"):
                     st.session_state["show_help_tab4"] = not st.session_state["show_help_tab4"]
 
             if st.session_state["show_help_tab4"]:
                 with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""
-                        📝 **Purpose:** Identify correlations between selected water quality parameters.
-
-                        📊 **What it shows:**
-                        - A matrix of correlation coefficients (-1 to 1)
-                        - Color-coded for visual clarity
-                        - Highlights strong positive or negative relationships
-
-                        🔍 **How to interpret:**
-                        - +1 = perfect positive correlation
-                        - 0 = no correlation
-                        - -1 = perfect negative correlation
-                        - Look for strong values (> 0.7 or < -0.7)
-
-                        📌 **Use cases:**
-                        - Detect relationships for modeling
-                        - Identify redundant variables
-                        - Spot environmental dependencies (e.g., temperature vs. DO)
-                    """)
+                    st.markdown("""...""")  # help content goes here
 
             try:
                 corr = plot_df.corr()
@@ -469,6 +434,7 @@ elif st.session_state.view == "details":
                     )
             except Exception as e:
                 st.error(f"❌ Failed to generate correlation heatmap: {e}")
+
         # Tab 5: Temporal Boxplot
         with tab5:
             st.subheader("📦 Temporal Boxplots")
