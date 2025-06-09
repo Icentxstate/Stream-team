@@ -651,73 +651,32 @@ with tab9:
         st.subheader("🚨 Anomaly Detection (Z-score)")
 
         available_stations = ts_df["Name"].dropna().unique().tolist()
-        selected_stations = st.multiselect("📍 Select stations to analyze", available_stations, default=available_stations[:5])
+        selected_stations = st.multiselect("📍 Select stations to view anomalies", available_stations, default=available_stations[:5])
 
-        z_df = ts_df[(ts_df["Name"].isin(selected_stations)) & 
-                     (ts_df["CharacteristicName"].isin(selected))].copy()
+        z_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
         z_df = z_df.dropna(subset=["ResultMeasureValue"])
 
         if not z_df.empty:
-            # نمایش مختصات
-            coords = z_df[["Name", "Latitude", "Longitude"]].drop_duplicates()
-            st.markdown("### 📌 Selected Station Coordinates")
-            st.dataframe(coords)
-
-            # محاسبه Z-Score
+            # محاسبه Z-Score روی کل داده‌ها
             z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
                 lambda x: (x - x.mean()) / x.std(ddof=0)
             )
-            anomalies = z_df[np.abs(z_df["zscore"]) > 3]
+            z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
 
-            st.write(f"🔍 Found {len(anomalies)} anomalies with |Z-score| > 3")
+            # فقط نمایش ایستگاه‌های انتخابی
+            display_df = z_df[z_df["Name"].isin(selected_stations)].copy()
+
+            coords = display_df[["Name", "Latitude", "Longitude"]].drop_duplicates()
+            st.markdown("### 📌 Selected Station Coordinates")
+            st.dataframe(coords)
+
+            anomalies = display_df[display_df["is_anomaly"]]
+            st.write(f"🔍 Found {len(anomalies)} anomalies in selected stations")
             st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
 
-            # دانلود فایل
             csv_anom = anomalies.to_csv(index=False).encode("utf-8")
             st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies.csv")
         else:
             st.warning("⚠️ Not enough valid data to detect anomalies.")
-    else:
-        st.warning("⚠️ Please select at least one parameter.")
-
-# --- Tab 10: Clustering ---
-with tab10:
-    if selected:
-        st.subheader("📍 Clustering (KMeans)")
-        from sklearn.cluster import KMeans
-        from io import BytesIO
-
-        available_stations = ts_df["Name"].dropna().unique().tolist()
-        selected_stations = st.multiselect("📍 Select stations for clustering", available_stations, default=available_stations[:5])
-
-        cluster_df = ts_df[
-            (ts_df["Name"].isin(selected_stations)) & 
-            (ts_df["CharacteristicName"].isin(selected))
-        ].dropna(subset=["Latitude", "Longitude", "ResultMeasureValue"])
-
-        if cluster_df.empty:
-            st.warning("⚠️ No data with valid coordinates and values.")
-        else:
-            grouped = cluster_df.groupby("Name")[["Latitude", "Longitude"]].mean().reset_index()
-
-            st.markdown("### 📌 Selected Station Coordinates")
-            st.dataframe(grouped)
-
-            n_clusters = st.slider("Select number of clusters:", 2, min(10, len(grouped)), 3)
-
-            if len(grouped) < n_clusters:
-                st.error(f"❌ Not enough points to form {n_clusters} clusters. You only have {len(grouped)} stations.")
-            else:
-                kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
-                grouped["Cluster"] = kmeans.labels_
-
-                fig_cluster, ax_cluster = plt.subplots()
-                sns.scatterplot(data=grouped, x="Longitude", y="Latitude", hue="Cluster", palette="tab10", s=100)
-                ax_cluster.set_title("📍 Clustered Monitoring Stations")
-                st.pyplot(fig_cluster)
-
-                buf = BytesIO()
-                fig_cluster.savefig(buf, format="png")
-                st.download_button("💾 Download Cluster Map", data=buf.getvalue(), file_name="clustering_map.png")
     else:
         st.warning("⚠️ Please select at least one parameter.")
