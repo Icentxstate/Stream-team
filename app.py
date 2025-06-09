@@ -577,92 +577,101 @@ elif st.session_state.view == "details":
                     file_name=f"heatmap_{param}_{time_mode.lower()}.png"
                 )
 
-        # Tab 9: Anomaly Detection
-        with tab9:
-            st.subheader("🚨 Anomaly Detection (Z-score)")
+with tab9:
+    if selected:
+        st.subheader("🚨 Anomaly Detection (Z-score)")
 
-            z_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ResultMeasureValue"])
-            if z_df.empty:
-                st.warning("⚠️ No valid data available for anomaly detection.")
-            else:
-                z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
-                    lambda x: (x - x.mean()) / x.std(ddof=0)
-                )
-                z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
+        z_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
+        z_df = z_df.dropna(subset=["ResultMeasureValue"])
 
-                available_names = z_df["Name"].dropna().unique().tolist()
-                selected_names = st.multiselect("📍 Select stations to display", available_names, default=available_names[:5])
-                filtered = z_df[z_df["Name"].isin(selected_names)]
-                anomalies = filtered[filtered["is_anomaly"]]
+        if z_df.empty:
+            st.warning("⚠️ No valid data available for anomaly detection.")
+        else:
+            z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
+                lambda x: (x - x.mean()) / x.std(ddof=0)
+            )
+            z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
 
-                st.markdown("### 📌 Selected Station Coordinates")
-                st.dataframe(filtered[["Name", "Latitude", "Longitude"]].drop_duplicates())
+            available_names = z_df["Name"].dropna().unique().tolist()
+            selected_names = st.multiselect("📍 Select stations to display", available_names, default=available_names[:5])
 
-                st.write(f"🔍 Found {len(anomalies)} anomalies in selected stations with |Z-score| > 3")
-                st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
+            filtered = z_df[z_df["Name"].isin(selected_names)]
+            anomalies = filtered[filtered["is_anomaly"]]
 
-                csv_anom = anomalies.to_csv(index=False).encode("utf-8")
-                st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
+            st.markdown("### 📌 Selected Station Coordinates")
+            coords_df = filtered[["Name", "Latitude", "Longitude"]].drop_duplicates()
+            st.dataframe(coords_df)
 
-        # Tab 10: Clustering
-        with tab10:
-            st.subheader("📍 KMeans Clustering of Selected Stations")
+            st.write(f"🔍 Found {len(anomalies)} anomalies in selected stations with |Z-score| > 3")
+            st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
 
-            cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ResultMeasureValue"])
-            all_names = cluster_df["Name"].dropna().unique().tolist()
-            selected_names = st.multiselect("📍 Select stations for clustering", all_names, default=all_names[:5])
-            filtered = cluster_df[cluster_df["Name"].isin(selected_names)]
+            csv_anom = anomalies.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
 
-            pivot = (
-                filtered
-                .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
-                .mean()
-                .unstack()
-                .dropna()
+with tab10:
+    if selected:
+        st.subheader("📍 KMeans Clustering of Stations")
+
+        cluster_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
+        cluster_df = cluster_df.dropna(subset=["ResultMeasureValue"])
+
+        # Pivot for clustering: rows=StationKey, cols=parameters, values=mean
+        pivot = (
+            cluster_df
+            .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
+            .mean()
+            .unstack()
+            .dropna()
+        )
+
+        if pivot.empty or pivot.shape[0] < 2:
+            st.info("Not enough data for clustering.")
+        else:
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.cluster import KMeans
+
+            num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
+
+            scaled_data = StandardScaler().fit_transform(pivot)
+            kmeans = KMeans(n_clusters=num_clusters, random_state=42)
+            clusters = kmeans.fit_predict(scaled_data)
+
+            pivot["Cluster"] = clusters
+            pivot.reset_index(inplace=True)
+
+            merged = pivot.merge(
+                df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
+                on="StationKey",
+                how="left"
             )
 
-            if pivot.empty or pivot.shape[0] < 2:
-                st.info("❗ Not enough valid stations for clustering.")
-            else:
-                from sklearn.preprocessing import StandardScaler
-                from sklearn.cluster import KMeans
+            st.markdown("### 📊 Clustered Stations")
+            st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
+
+            csv_clus = merged.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Clustering Results", data=csv_clus, file_name="clustering_results.csv")
+
+            # Optional scatter plot (PCA visualization)
+            try:
                 from sklearn.decomposition import PCA
+                pca = PCA(n_components=2)
+                pca_result = pca.fit_transform(scaled_data)
+                merged["PC1"] = pca_result[:, 0]
+                merged["PC2"] = pca_result[:, 1]
 
-                num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
+                fig_c, ax_c = plt.subplots(figsize=(8, 6))
+                for i in range(num_clusters):
+                    subset = merged[merged["Cluster"] == i]
+                    ax_c.scatter(subset["PC1"], subset["PC2"], label=f"Cluster {i}")
+                ax_c.set_title("KMeans Clustering (PCA View)")
+                ax_c.set_xlabel("PC1")
+                ax_c.set_ylabel("PC2")
+                ax_c.legend()
+                st.pyplot(fig_c)
+            except Exception as e:
+                st.info("PCA scatter plot could not be generated.")
+    else:
+        st.warning("⚠️ Please select at least one parameter.")
 
-                scaled = StandardScaler().fit_transform(pivot)
-                kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-                clusters = kmeans.fit_predict(scaled)
-
-                pivot["Cluster"] = clusters
-                pivot.reset_index(inplace=True)
-
-                merged = pivot.merge(
-                    df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
-                    on="StationKey",
-                    how="left"
-                )
-
-                st.markdown("### 📋 Clustered Station Summary")
-                st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
-
-                csv_clus = merged.to_csv(index=False).encode("utf-8")
-                st.download_button("💾 Download Clustering Data", data=csv_clus, file_name="clustered_stations.csv")
-
-                try:
-                    pca = PCA(n_components=2)
-                    pca_result = pca.fit_transform(scaled)
-                    merged["PC1"] = pca_result[:, 0]
-                    merged["PC2"] = pca_result[:, 1]
-
-                    fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
-                    for i in range(num_clusters):
-                        sub = merged[merged["Cluster"] == i]
-                        ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
-                    ax_pca.set_title("PCA View of Clusters")
-                    ax_pca.set_xlabel("Principal Component 1")
-                    ax_pca.set_ylabel("Principal Component 2")
-                    ax_pca.legend()
-                    st.pyplot(fig_pca)
-                except Exception:
-                    st.warning("⚠️ PCA scatter plot could not be generated.")        
