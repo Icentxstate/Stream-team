@@ -277,7 +277,7 @@ elif st.session_state.view == "details":
             with tab:
                 st.warning("⚠️ Please select at least one parameter to display results.")
     else:
-        # ✅ فقط اگر selected پر بود، بقیه تب‌ها رو پر کن
+        # ✅ Tab 1
         # Tab 1: Time Series
         with tab1:
             st.subheader("📈 Time Series")
@@ -298,7 +298,24 @@ elif st.session_state.view == "details":
 
             if st.session_state["show_help_tab1"]:
                 with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""...""")  # help content goes here
+                    st.markdown("""
+                        📝 **Purpose:** Visualize how selected water quality parameters change over time at the selected station.
+
+                        📊 **What it shows:**
+                        - Long-term and short-term variations
+                        - Seasonal patterns or unexpected spikes
+                        - Overall trends (upward, downward, or stable)
+
+                        🔍 **How to interpret:**
+                        - Look for consistent increases or decreases that indicate a long-term trend.
+                        - Identify seasonal behavior (e.g., higher temperatures in summer).
+                        - Spot sudden spikes or drops, which may signal pollution events or measurement errors.
+
+                        📌 **Use cases:**
+                        - Evaluate the effectiveness of pollution control efforts.
+                        - Understand environmental impacts over time.
+                        - Identify critical times for monitoring or interventions.
+                    """)
 
             try:
                 if plot_df.empty:
@@ -318,6 +335,7 @@ elif st.session_state.view == "details":
                     st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
             except Exception as e:
                 st.error(f"❌ Failed to generate time series plot: {e}")
+
 
         # Tab 2: Scatter Plot
         with tab2:
