@@ -87,14 +87,21 @@ st.markdown("""
     iframe {
         border: none;
     }
-
-    /* ✅ Make tab labels larger and bold (reliable selector) */
-    div[role="tablist"] > div {
-        font-size: 18px !important;
-        font-weight: bold !important;
-        color: #0c6e72 !important;
-    }
     </style>
+
+    <script>
+    const interval = setInterval(() => {
+        const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+        if (tabs.length) {
+            tabs.forEach(tab => {
+                tab.style.fontSize = "20px";
+                tab.style.fontWeight = "bold";
+                tab.style.color = "#0c6e72";
+            });
+            clearInterval(interval);
+        }
+    }, 100);
+    </script>
 """, unsafe_allow_html=True)
 
 # 📌 Orange Welcome Card (only on map view)
