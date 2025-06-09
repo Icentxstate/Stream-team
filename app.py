@@ -88,8 +88,8 @@ st.markdown("""
         border: none;
     }
 
-    /* Make tab labels larger and bold */
-    .stTabs [role="tab"] {
+    /* ✅ Make tab labels larger and bold (reliable selector) */
+    div[role="tablist"] > div {
         font-size: 18px !important;
         font-weight: bold !important;
         color: #0c6e72 !important;
