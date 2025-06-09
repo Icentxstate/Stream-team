@@ -452,11 +452,11 @@ with tab6:
                 result = mk.original_test(series)
                 trend_results.append({
                     "Parameter": param,
-                    "Trend": result.trend,
-                    "p-value": result.p,
-                    "Tau": result.Tau,
-                    "S": result.S,
-                    "n": result.n
+                    "Trend": result.trend if hasattr(result, "trend") else "Unknown",
+                    "p-value": result.p if hasattr(result, "p") else None,
+                    "Tau": result.Tau if hasattr(result, "Tau") else None,
+                    "S": result.S if hasattr(result, "S") else None,
+                    "n": result.n if hasattr(result, "n") else len(series)
                 })
             else:
                 trend_results.append({
@@ -469,15 +469,11 @@ with tab6:
                 })
 
         trend_df = pd.DataFrame(trend_results)
+        st.dataframe(trend_df.style.format({
+            "p-value": "{:.4f}",
+            "Tau": "{:.2f}"
+        }))
 
-        # ✅ Display-safe version with formatting and null handling
-        trend_df_display = trend_df.copy()
-        trend_df_display["p-value"] = trend_df_display["p-value"].apply(lambda x: f"{x:.4f}" if pd.notnull(x) else "N/A")
-        trend_df_display["Tau"] = trend_df_display["Tau"].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "N/A")
-
-        st.dataframe(trend_df_display)
-
-        # 📥 Download raw version
         csv_trend = trend_df.to_csv(index=False).encode("utf-8")
         st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
     else:
