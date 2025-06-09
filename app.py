@@ -265,6 +265,12 @@ elif st.session_state.view == "details":
     selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
     if selected:
+            st.markdown(
+                    f"<div style='margin-top:10px;margin-bottom:20px;'><b style='font-size:18px;'>Selected Parameters:</b> <span style='font-size:18px;color:#0c6e72;font-weight:bold;'>{', '.join(selected)}</span></div>",
+            unsafe_allow_html=True
+        )
+
+    if selected:
         plot_df = (
             ts_df[ts_df["CharacteristicName"].isin(selected)]
             .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
