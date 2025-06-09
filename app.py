@@ -416,7 +416,7 @@ elif st.session_state.view == "details":
                 st.error(f"❌ Failed to compute summary statistics: {e}")
 
         # Tab 4: Correlation Heatmap
-         with tab4:
+        with tab4:
             st.subheader("🧮 Correlation Heatmap")
 
             if "show_help_tab4" not in st.session_state:
@@ -469,8 +469,7 @@ elif st.session_state.view == "details":
                     )
             except Exception as e:
                 st.error(f"❌ Failed to generate correlation heatmap: {e}")
-
-        # Tab 5: Seasonal Boxplot
+        # Tab 5: Temporal Boxplot
         with tab5:
             st.subheader("📦 Temporal Boxplots")
 
@@ -503,7 +502,6 @@ elif st.session_state.view == "details":
                         - Reveal consistent seasonal peaks or troughs
                     """)
 
-            # Utility function for season label
             def get_season(month):
                 if month in [12, 1, 2]:
                     return "Winter"
@@ -559,6 +557,7 @@ elif st.session_state.view == "details":
                     )
             except Exception as e:
                 st.error(f"❌ Failed to generate boxplot: {e}")
+
 
         # Tab 6: Mann-Kendall Trend Analysis
         with tab6:
