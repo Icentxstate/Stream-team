@@ -147,8 +147,8 @@ gdf_safe["geometry"] = gdf["geometry"]
 bounds = gdf.total_bounds
 
 # --- Sidebar ---
+# --- Sidebar ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
-# --- Parameter selection ---
 selected_param = st.sidebar.selectbox("📌 Select Parameter", available_params)
 
 # --- Date filter by month and year ---
@@ -157,17 +157,29 @@ df_param["YearMonth"] = df_param["ActivityStartDate"].dt.to_period("M").astype(s
 unique_periods = sorted(df_param["YearMonth"].dropna().unique())
 selected_period = st.sidebar.selectbox("📅 Select Month-Year", ["All"] + unique_periods)
 
+# --- Multi-station selection ---
+station_options = df_param.drop_duplicates("StationKey")[["StationKey", "Name"]]
+station_labels = [f"{row['Name']} ({row['StationKey']})" for _, row in station_options.iterrows()]
+station_map = dict(zip(station_labels, station_options["StationKey"]))
+selected_station_labels = st.sidebar.multiselect("📍 Select Station(s)", station_labels)
+selected_stations = [station_map[label] for label in selected_station_labels]
+
+# --- Apply filters ---
 if selected_period != "All":
     df_param = df_param[df_param["YearMonth"] == selected_period]
+if selected_stations:
+    df_param = df_param[df_param["StationKey"].isin(selected_stations)]
 
 filtered_df = df_param.copy()
 
+# --- Extract latest values per station (for map markers)
 latest_values = (
     filtered_df.sort_values("ActivityStartDate")
     .groupby("StationKey")
     .tail(1)
     .set_index("StationKey")
 )
+
 
 min_val = filtered_df["ResultMeasureValue"].min()
 max_val = filtered_df["ResultMeasureValue"].max()
