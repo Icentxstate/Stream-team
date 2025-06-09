@@ -800,6 +800,7 @@ with tab7:
     else:
         st.info("Please select at least one parameter for WQI.")
 
+
         # Tab 8: Spatio-Temporal Heatmap
         with tab8:
             st.subheader("🗺️ Spatio-Temporal Heatmap")
