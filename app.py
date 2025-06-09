@@ -148,8 +148,20 @@ bounds = gdf.total_bounds
 
 # --- Sidebar ---
 available_params = sorted(df_long["CharacteristicName"].dropna().unique())
+# --- Parameter selection ---
 selected_param = st.sidebar.selectbox("📌 Select Parameter", available_params)
-filtered_df = df_long[df_long["CharacteristicName"] == selected_param]
+
+# --- Date filter by month and year ---
+df_param = df_long[df_long["CharacteristicName"] == selected_param].copy()
+df_param["YearMonth"] = df_param["ActivityStartDate"].dt.to_period("M").astype(str)
+unique_periods = sorted(df_param["YearMonth"].dropna().unique())
+selected_period = st.sidebar.selectbox("📅 Select Month-Year", ["All"] + unique_periods)
+
+if selected_period != "All":
+    df_param = df_param[df_param["YearMonth"] == selected_period]
+
+filtered_df = df_param.copy()
+
 latest_values = (
     filtered_df.sort_values("ActivityStartDate")
     .groupby("StationKey")
@@ -259,15 +271,13 @@ elif st.session_state.view == "details":
             .dropna(how='all')
         )
 
-        # Separate tabs for each analysis
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "📈 Time Series", 
-            "📉 Scatter Plot", 
-            "📊 Summary Statistics", 
-            "🧮 Correlation Heatmap"
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+            "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
+            "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
+            "🚨 Anomaly Detection", "📍 Clustering"
         ])
 
-        # --- Tab 1: Time Series ---
+        # Tab 1: Time Series
         with tab1:
             st.subheader("📈 Time Series")
             fig, ax = plt.subplots(figsize=(10, 5))
@@ -282,7 +292,7 @@ elif st.session_state.view == "details":
             fig.savefig(buf_ts, format="png")
             st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
 
-        # --- Tab 2: Scatter Plot ---
+        # Tab 2: Scatter Plot
         with tab2:
             st.subheader("📉 Scatter Plot")
             all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
@@ -309,16 +319,14 @@ elif st.session_state.view == "details":
             else:
                 st.info("Not enough data to generate scatter plot.")
 
-        # --- Tab 3: Summary Statistics ---
+        # Tab 3: Summary Statistics
         with tab3:
             st.subheader("📊 Summary Statistics")
             stats = plot_df.describe().T
             st.dataframe(stats.style.format("{:.2f}"))
-
             csv_stats = stats.to_csv().encode("utf-8")
             st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
-
-        # --- Tab 4: Correlation Heatmap ---
+        # Tab 4: Correlation Heatmap
         with tab4:
             st.subheader("🧮 Correlation Heatmap")
             corr = plot_df.corr()
@@ -326,7 +334,335 @@ elif st.session_state.view == "details":
                 fig2, ax2 = plt.subplots(figsize=(8, 6))
                 sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
                 st.pyplot(fig2)
+
+                buf_corr = BytesIO()
+                fig2.savefig(buf_corr, format="png")
+                st.download_button(
+                    "💾 Download Correlation Heatmap",
+                    data=buf_corr.getvalue(),
+                    file_name="correlation_heatmap.png"
+                )
             else:
                 st.info("Not enough data for correlation heatmap.")
-    else:
-        st.warning("⚠️ Please select at least one parameter to analyze.")
+
+        # Tab 5: Seasonal Boxplot
+        with tab5:
+            st.subheader("📦 Temporal Boxplots")
+
+            def get_season(month):
+                if month in [12, 1, 2]:
+                    return "Winter"
+                elif month in [3, 4, 5]:
+                    return "Spring"
+                elif month in [6, 7, 8]:
+                    return "Summer"
+                else:
+                    return "Fall"
+
+            seasonal_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+            seasonal_df["Month"] = seasonal_df["ActivityStartDate"].dt.strftime("%b")
+            seasonal_df["Year"] = seasonal_df["ActivityStartDate"].dt.year
+            seasonal_df["Season"] = seasonal_df["ActivityStartDate"].dt.month.apply(get_season)
+
+            box_type = st.radio("Select Time Grouping:", ["Season", "Month", "Year"], horizontal=True)
+
+            if not seasonal_df.empty:
+                fig5, ax5 = plt.subplots(figsize=(12, 5))
+
+                if box_type == "Season":
+                    sns.boxplot(
+                        x="Season", y="ResultMeasureValue", hue="CharacteristicName",
+                        data=seasonal_df, palette="Set2", ax=ax5
+                    )
+                elif box_type == "Month":
+                    sns.boxplot(
+                        x="Month", y="ResultMeasureValue", hue="CharacteristicName",
+                        data=seasonal_df, palette="Set3",
+                        order=["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+                        ax=ax5
+                    )
+                else:
+                    sns.boxplot(
+                        x="Year", y="ResultMeasureValue", hue="CharacteristicName",
+                        data=seasonal_df, palette="Set1", ax=ax5
+                    )
+
+                ax5.set_ylabel("Value")
+                st.pyplot(fig5)
+
+                buf5 = BytesIO()
+                fig5.savefig(buf5, format="png")
+                st.download_button("💾 Download Boxplot Image", data=buf5.getvalue(), file_name=f"boxplot_{box_type.lower()}.png")
+            else:
+                st.info("Not enough data to generate temporal boxplots.")
+
+        # Tab 6: Mann-Kendall Trend Analysis
+        with tab6:
+            st.subheader("📐 Mann-Kendall Trend Test")
+
+            try:
+                import pymannkendall as mk
+            except ImportError:
+                st.error("Please install 'pymannkendall' using pip install pymannkendall.")
+                st.stop()
+
+            trend_results = []
+
+            for param in selected:
+                series = (
+                    ts_df[ts_df["CharacteristicName"] == param]
+                    .sort_values("ActivityStartDate")
+                    .set_index("ActivityStartDate")["ResultMeasureValue"]
+                    .dropna()
+                )
+
+                if len(series) >= 8:
+                    try:
+                        result = mk.original_test(series)
+                        trend_results.append({
+                            "Parameter": param,
+                            "Trend": result.trend,
+                            "p-value": result.p,
+                            "Tau": result.Tau,
+                            "S": result.S,
+                            "n": result.n
+                        })
+                    except Exception as e:
+                        trend_results.append({
+                            "Parameter": param,
+                            "Trend": f"Error: {e}",
+                            "p-value": None,
+                            "Tau": None,
+                            "S": None,
+                            "n": len(series)
+                        })
+                else:
+                    trend_results.append({
+                        "Parameter": param,
+                        "Trend": "Insufficient Data",
+                        "p-value": None,
+                        "Tau": None,
+                        "S": None,
+                        "n": len(series)
+                    })
+
+            trend_df = pd.DataFrame(trend_results)
+            trend_df["p-value"] = trend_df["p-value"].apply(lambda x: f"{x:.4f}" if pd.notnull(x) else "NA")
+            trend_df["Tau"] = trend_df["Tau"].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "NA")
+
+            st.dataframe(trend_df)
+
+            csv_trend = trend_df.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
+
+
+        # Tab 7: Water Quality Index (WQI)
+        with tab7:
+            st.subheader("💧 Water Quality Index (WQI)")
+
+            wqi_df = ts_df.copy()
+            parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
+
+            selected_wqi_params = st.multiselect("🧪 Select parameters for WQI", parameters, default=parameters[:3])
+
+            if selected_wqi_params:
+                st.markdown("### ⚖️ Assign weights (total should sum to 1):")
+                weights = {}
+                total_weight = 0.0
+                for param in selected_wqi_params:
+                    w = st.slider(f"Weight for {param}", 0.0, 1.0, round(1.0 / len(selected_wqi_params), 2), 0.05, key=f"w_{param}")
+                    weights[param] = w
+                    total_weight += w
+
+                if abs(total_weight - 1.0) > 0.01:
+                    st.warning("⚠️ Total weights must sum to 1. Adjust sliders.")
+                else:
+                    norm_df = pd.DataFrame()
+
+                    for param in selected_wqi_params:
+                        sub = wqi_df[wqi_df["CharacteristicName"] == param].copy()
+                        sub = sub[["ActivityStartDate", "ResultMeasureValue"]].dropna()
+
+                        if sub.empty or sub["ResultMeasureValue"].nunique() <= 1:
+                            st.warning(f"⚠️ Skipping {param} due to insufficient or constant data.")
+                            continue
+
+                        sub = sub.set_index("ActivityStartDate").resample("M").mean().reset_index()
+                        min_val = sub["ResultMeasureValue"].min()
+                        max_val = sub["ResultMeasureValue"].max()
+                        sub["Normalized"] = 100 * (sub["ResultMeasureValue"] - min_val) / (max_val - min_val) if max_val != min_val else 0
+                        sub["Weighted"] = sub["Normalized"] * weights[param]
+                        sub["Parameter"] = param
+                        norm_df = pd.concat([norm_df, sub], ignore_index=True)
+
+                    if norm_df.empty:
+                        st.info("⚠️ No valid data available to compute WQI.")
+                    else:
+                        wqi_monthly = norm_df.groupby("ActivityStartDate")["Weighted"].sum().reset_index()
+                        wqi_monthly["WQI Category"] = pd.cut(
+                            wqi_monthly["Weighted"],
+                            bins=[0, 25, 50, 75, 100],
+                            labels=["Poor", "Moderate", "Good", "Excellent"]
+                        )
+
+                        st.line_chart(wqi_monthly.set_index("ActivityStartDate")["Weighted"])
+                        st.dataframe(wqi_monthly)
+
+                        csv_wqi = wqi_monthly.to_csv(index=False).encode("utf-8")
+                        st.download_button("💾 Download WQI Data", data=csv_wqi, file_name="wqi_results.csv")
+            else:
+                st.info("Please select at least one parameter for WQI.")
+
+        # Tab 8: Spatio-Temporal Heatmap
+        with tab8:
+            st.subheader("🗺️ Spatio-Temporal Heatmap")
+
+            time_mode = st.radio("🕒 Aggregation Level", ["Monthly", "Seasonal", "Yearly"], horizontal=True)
+
+            def get_season(month):
+                if month in [12, 1, 2]:
+                    return "Winter"
+                elif month in [3, 4, 5]:
+                    return "Spring"
+                elif month in [6, 7, 8]:
+                    return "Summer"
+                else:
+                    return "Fall"
+
+            heatmap_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ActivityStartDate", "ResultMeasureValue"])
+
+            if time_mode == "Monthly":
+                heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.to_period("M").astype(str)
+            elif time_mode == "Yearly":
+                heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
+            elif time_mode == "Seasonal":
+                heatmap_df["Season"] = heatmap_df["ActivityStartDate"].dt.month.apply(get_season)
+                heatmap_df["Year"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
+                heatmap_df["TimeGroup"] = heatmap_df["Year"] + " - " + heatmap_df["Season"]
+
+            for param in selected:
+                param_df = heatmap_df[heatmap_df["CharacteristicName"] == param].copy()
+
+                if param_df.empty:
+                    st.warning(f"No data available for {param}")
+                    continue
+
+                pivot = pd.pivot_table(
+                    param_df,
+                    values="ResultMeasureValue",
+                    index="StationKey",
+                    columns="TimeGroup",
+                    aggfunc="mean"
+                ).sort_index()
+
+                if pivot.empty:
+                    st.warning(f"No data to display heatmap for {param}")
+                    continue
+
+                st.markdown(f"### 🔥 Heatmap for {param} ({time_mode})")
+                fig_hm, ax_hm = plt.subplots(figsize=(12, max(4, len(pivot) * 0.4)))
+                sns.heatmap(pivot, cmap="coolwarm", linewidths=0.5, linecolor="gray", ax=ax_hm)
+                ax_hm.set_title(f"{param} - {time_mode} Heatmap", fontsize=14)
+                ax_hm.set_xlabel(time_mode)
+                ax_hm.set_ylabel("Station")
+                plt.xticks(rotation=45)
+                st.pyplot(fig_hm)
+
+                buf_hm = BytesIO()
+                fig_hm.savefig(buf_hm, format="png", bbox_inches="tight")
+                st.download_button(
+                    label=f"💾 Download Heatmap for {param}",
+                    data=buf_hm.getvalue(),
+                    file_name=f"heatmap_{param}_{time_mode.lower()}.png"
+                )
+
+        # Tab 9: Anomaly Detection
+        with tab9:
+            st.subheader("🚨 Anomaly Detection (Z-score)")
+
+            z_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ResultMeasureValue"])
+            if z_df.empty:
+                st.warning("⚠️ No valid data available for anomaly detection.")
+            else:
+                z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
+                    lambda x: (x - x.mean()) / x.std(ddof=0)
+                )
+                z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
+
+                available_names = z_df["Name"].dropna().unique().tolist()
+                selected_names = st.multiselect("📍 Select stations to display", available_names, default=available_names[:5])
+                filtered = z_df[z_df["Name"].isin(selected_names)]
+                anomalies = filtered[filtered["is_anomaly"]]
+
+                st.markdown("### 📌 Selected Station Coordinates")
+                st.dataframe(filtered[["Name", "Latitude", "Longitude"]].drop_duplicates())
+
+                st.write(f"🔍 Found {len(anomalies)} anomalies in selected stations with |Z-score| > 3")
+                st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
+
+                csv_anom = anomalies.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
+
+        # Tab 10: Clustering
+        with tab10:
+            st.subheader("📍 KMeans Clustering of Selected Stations")
+
+            cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ResultMeasureValue"])
+            all_names = cluster_df["Name"].dropna().unique().tolist()
+            selected_names = st.multiselect("📍 Select stations for clustering", all_names, default=all_names[:5])
+            filtered = cluster_df[cluster_df["Name"].isin(selected_names)]
+
+            pivot = (
+                filtered
+                .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
+                .mean()
+                .unstack()
+                .dropna()
+            )
+
+            if pivot.empty or pivot.shape[0] < 2:
+                st.info("❗ Not enough valid stations for clustering.")
+            else:
+                from sklearn.preprocessing import StandardScaler
+                from sklearn.cluster import KMeans
+                from sklearn.decomposition import PCA
+
+                num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
+
+                scaled = StandardScaler().fit_transform(pivot)
+                kmeans = KMeans(n_clusters=num_clusters, random_state=42)
+                clusters = kmeans.fit_predict(scaled)
+
+                pivot["Cluster"] = clusters
+                pivot.reset_index(inplace=True)
+
+                merged = pivot.merge(
+                    df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
+                    on="StationKey",
+                    how="left"
+                )
+
+                st.markdown("### 📋 Clustered Station Summary")
+                st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
+
+                csv_clus = merged.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Download Clustering Data", data=csv_clus, file_name="clustered_stations.csv")
+
+                try:
+                    pca = PCA(n_components=2)
+                    pca_result = pca.fit_transform(scaled)
+                    merged["PC1"] = pca_result[:, 0]
+                    merged["PC2"] = pca_result[:, 1]
+
+                    fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
+                    for i in range(num_clusters):
+                        sub = merged[merged["Cluster"] == i]
+                        ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
+                    ax_pca.set_title("PCA View of Clusters")
+                    ax_pca.set_xlabel("Principal Component 1")
+                    ax_pca.set_ylabel("Principal Component 2")
+                    ax_pca.legend()
+                    st.pyplot(fig_pca)
+                except Exception:
+                    st.warning("⚠️ PCA scatter plot could not be generated.")        
