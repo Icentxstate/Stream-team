@@ -1059,8 +1059,4 @@ with tab7:
                         st.warning(f"⚠️ PCA scatter plot could not be generated: {e}")
             except Exception as e:
                 st.error(f"❌ Failed to perform clustering: {e}")
-# --- If no parameter selected, show warning in all tabs ---
-else:
-    for tab in [tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10]:
-        with tab:
-            st.warning("⚠️ Please select at least one parameter to display results.")
+
