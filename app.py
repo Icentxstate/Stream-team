@@ -351,13 +351,30 @@ elif st.session_state.view == "details":
 
             if st.session_state["show_help_tab2"]:
                 with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""...""")  # help content goes here
+                    st.markdown("""
+                        📝 **Purpose:** Explore the relationship between two selected water quality parameters at the selected station.
 
-            all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
-            x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
-            y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
+                        📊 **What it shows:**
+                        - Correlation or lack of relationship between two variables
+                        - Outlier behaviors
+                        - Patterns that may suggest causal or co-varying dynamics
+
+                        🔍 **How to interpret:**
+                        - A positive linear trend suggests both parameters increase together.
+                        - A negative trend suggests one increases while the other decreases.
+                        - Scatter without pattern indicates no strong relationship.
+
+                        📌 **Use cases:**
+                        - Discover interactions between parameters (e.g., temperature and DO)
+                        - Identify outlier measurements
+                        - Prepare for correlation or regression analysis
+                    """)
 
             try:
+                all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
+                x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
+                y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
+
                 scatter_df = (
                     ts_df[ts_df["CharacteristicName"].isin([x_var, y_var])]
                     .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
@@ -398,21 +415,41 @@ elif st.session_state.view == "details":
 
             if st.session_state["show_help_tab3"]:
                 with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""...""")  # help content goes here
+                    st.markdown("""
+                        📝 **Purpose:** Provide quick descriptive statistics for the selected parameters.
+
+                        📊 **What it shows:**
+                        - Mean, median, standard deviation, min, max, and quartiles
+                        - Summary of central tendency and variability
+                        - Useful for spotting outliers or comparing sites
+
+                        🔍 **How to interpret:**
+                        - **Mean** and **median**: compare to detect skewed data
+                        - **Std**: higher value = more variability
+                        - **Min/Max**: check for out-of-range or error values
+
+                        📌 **Use cases:**
+                        - Quick health check of water quality metrics
+                        - Guide parameter selection for deeper analysis
+                        - Communicate variability to stakeholders
+                    """)
 
             try:
-                if plot_df.empty:
-                    st.info("⚠️ No summary statistics available for the selected parameters.")
-                else:
-                    stats = plot_df.describe().T
-                    st.dataframe(stats.style.format("{:.2f}"))
+                stats_df = (
+                    ts_df[ts_df["CharacteristicName"].isin(selected)]
+                    .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+                    .describe()
+                    .T
+                    .round(2)
+                )
 
-                    csv_stats = stats.to_csv().encode("utf-8")
-                    st.download_button(
-                        "💾 Download Summary CSV",
-                        data=csv_stats,
-                        file_name="summary_statistics.csv"
-                    )
+                if stats_df.empty:
+                    st.info("⚠️ No valid data to summarize.")
+                else:
+                    st.dataframe(stats_df)
+
+                    csv_stats = stats_df.to_csv().encode("utf-8")
+                    st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
             except Exception as e:
                 st.error(f"❌ Failed to compute summary statistics: {e}")
 
@@ -430,16 +467,39 @@ elif st.session_state.view == "details":
 
             if st.session_state["show_help_tab4"]:
                 with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""...""")  # help content goes here
+                    st.markdown("""
+                        📝 **Purpose:** Identify correlations between selected water quality parameters.
+
+                        📊 **What it shows:**
+                        - A matrix of correlation coefficients (-1 to 1)
+                        - Color-coded for visual clarity
+                        - Highlights strong positive or negative relationships
+
+                        🔍 **How to interpret:**
+                        - **+1** = perfect positive correlation
+                        - **0** = no correlation
+                        - **-1** = perfect negative correlation
+                        - Focus on strong values (e.g., > 0.7 or < -0.7)
+
+                        📌 **Use cases:**
+                        - Detect relationships for modeling
+                        - Identify redundant variables
+                        - Spot environmental dependencies (e.g., temperature vs. DO)
+                    """)
 
             try:
-                corr = plot_df.corr()
+                corr_df = (
+                    ts_df[ts_df["CharacteristicName"].isin(selected)]
+                    .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+                )
 
-                if corr.empty:
-                    st.info("⚠️ Not enough data for correlation heatmap.")
+                corr_matrix = corr_df.corr()
+
+                if corr_matrix.empty or corr_matrix.isna().all().all():
+                    st.info("⚠️ Not enough data to generate correlation heatmap.")
                 else:
                     fig_corr, ax_corr = plt.subplots(figsize=(8, 6))
-                    sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax_corr)
+                    sns.heatmap(corr_matrix, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax_corr)
                     ax_corr.set_title("Correlation Heatmap")
                     st.pyplot(fig_corr)
 
