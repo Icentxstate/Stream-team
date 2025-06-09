@@ -265,18 +265,20 @@ elif st.session_state.view == "details":
     selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
     # ✅ همیشه تب‌ها را تعریف کن (حتی اگر selected خالی باشد)
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-        "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
-        "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
-        "🚨 Anomaly Detection", "📍 Clustering"
-    ])
+selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
-    # ✅ اگر چیزی انتخاب نشده، فقط هشدار بده
-    if not selected:
-        for tab in [tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10]:
-            with tab:
-                st.warning("⚠️ Please select at least one parameter to display results.")
-    else:
+# ✅ همیشه تب‌ها را تعریف کن (قبل از بررسی if)
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+    "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
+    "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
+    "🚨 Anomaly Detection", "📍 Clustering"
+])
+
+if not selected:
+    for tab in [tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10]:
+        with tab:
+            st.warning("⚠️ Please select at least one parameter to display results.")
+else:
         # ✅ Tab 1
         # Tab 1: Time Series
         with tab1:
