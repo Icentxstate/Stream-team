@@ -801,262 +801,270 @@ with tab7:
         st.info("Please select at least one parameter for WQI.")
 
 
-        # Tab 8: Spatio-Temporal Heatmap
-        with tab8:
-            st.subheader("🗺️ Spatio-Temporal Heatmap")
+# Tab 8: Spatio-Temporal Heatmap
+# Tab 8: Spatio-Temporal Heatmap
+with tab8:
+    st.subheader("🗺️ Spatio-Temporal Heatmap")
 
-            if "show_help_tab8" not in st.session_state:
-                st.session_state["show_help_tab8"] = False
+    if "show_help_tab8" not in st.session_state:
+        st.session_state["show_help_tab8"] = False
 
-            col1, col2 = st.columns([1, 9])
-            with col1:
-                if st.button("❔", key="toggle_help_tab8"):
-                    st.session_state["show_help_tab8"] = not st.session_state["show_help_tab8"]
+    col1, col2 = st.columns([1, 9])
+    with col1:
+        if st.button("❔", key="toggle_help_tab8"):
+            st.session_state["show_help_tab8"] = not st.session_state["show_help_tab8"]
 
-            if st.session_state["show_help_tab8"]:
-                with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""
-                        📝 **Purpose:** Visualize how parameter values vary across stations and over time.
+    if st.session_state["show_help_tab8"]:
+        with st.expander("📘 Tab Help", expanded=True):
+            st.markdown("""
+                📝 **Purpose:** Visualize how parameter values vary across stations and over time.
 
-                        📊 **What it shows:**
-                        - Matrix of values for each station across time periods
-                        - Temporal evolution of spatial measurements
-                        - Useful for identifying hotspots or changes in water quality
+                📊 **What it shows:**
+                - Matrix of values for each station across time periods
+                - Temporal evolution of spatial measurements
+                - Useful for identifying hotspots or changes in water quality
 
-                        🔍 **How to interpret:**
-                        - Darker cells indicate higher values
-                        - Trends across rows show time variation at each station
-                        - Trends across columns show differences between stations
+                🔍 **How to interpret:**
+                - Darker cells indicate higher values
+                - Trends across rows show time variation at each station
+                - Trends across columns show differences between stations
 
-                        📌 **Use cases:**
-                        - Detect areas with rising or declining water quality
-                        - Spot seasonal or annual hotspots
-                        - Compare stations in a watershed over time
-                    """)
+                📌 **Use cases:**
+                - Detect areas with rising or declining water quality
+                - Spot seasonal or annual hotspots
+                - Compare stations in a watershed over time
+            """)
 
-            def get_season(month):
-                if month in [12, 1, 2]:
-                    return "Winter"
-                elif month in [3, 4, 5]:
-                    return "Spring"
-                elif month in [6, 7, 8]:
-                    return "Summer"
-                else:
-                    return "Fall"
+    def get_season(month):
+        if month in [12, 1, 2]:
+            return "Winter"
+        elif month in [3, 4, 5]:
+            return "Spring"
+        elif month in [6, 7, 8]:
+            return "Summer"
+        else:
+            return "Fall"
 
+    try:
+        heatmap_df = ts_df[
+            ts_df["CharacteristicName"].isin(selected)
+        ].copy().dropna(subset=["ActivityStartDate", "ResultMeasureValue"])
+
+        time_mode = st.radio("🕒 Aggregation Level", ["Monthly", "Seasonal", "Yearly"], horizontal=True)
+
+        if time_mode == "Monthly":
+            heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.to_period("M").astype(str)
+        elif time_mode == "Yearly":
+            heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
+        elif time_mode == "Seasonal":
+            heatmap_df["Season"] = heatmap_df["ActivityStartDate"].dt.month.apply(get_season)
+            heatmap_df["Year"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
+            heatmap_df["TimeGroup"] = heatmap_df["Year"] + " - " + heatmap_df["Season"]
+
+        for param in selected:
+            param_df = heatmap_df[heatmap_df["CharacteristicName"] == param].copy()
+
+            if param_df.empty:
+                st.warning(f"⚠️ No data available for {param}")
+                continue
+
+            pivot = pd.pivot_table(
+                param_df,
+                values="ResultMeasureValue",
+                index="StationKey",
+                columns="TimeGroup",
+                aggfunc="mean"
+            ).sort_index()
+
+            if pivot.empty:
+                st.warning(f"⚠️ No data to display heatmap for {param}")
+                continue
+
+            st.markdown(f"### 🔥 Heatmap for `{param}` ({time_mode})")
+            fig_hm, ax_hm = plt.subplots(figsize=(12, max(4, len(pivot) * 0.4)))
+            sns.heatmap(pivot, cmap="coolwarm", linewidths=0.5, linecolor="gray", ax=ax_hm)
+            ax_hm.set_title(f"{param} - {time_mode} Heatmap", fontsize=14)
+            ax_hm.set_xlabel(time_mode)
+            ax_hm.set_ylabel("Station")
+            plt.xticks(rotation=45)
+            st.pyplot(fig_hm)
+
+            buf_hm = BytesIO()
+            fig_hm.savefig(buf_hm, format="png", bbox_inches="tight")
+            st.download_button(
+                label=f"💾 Download Heatmap for {param}",
+                data=buf_hm.getvalue(),
+                file_name=f"heatmap_{param}_{time_mode.lower()}.png"
+            )
+    except Exception as e:
+        st.error(f"❌ Failed to generate heatmaps: {e}")
+
+       
+# Tab 9
+ # Tab 9: Anomaly Detection (Z-score)
+with tab9:
+    st.subheader("🚨 Anomaly Detection (Z-score)")
+
+    if "show_help_tab9" not in st.session_state:
+        st.session_state["show_help_tab9"] = False
+
+    col1, col2 = st.columns([1, 9])
+    with col1:
+        if st.button("❔", key="toggle_help_tab9"):
+            st.session_state["show_help_tab9"] = not st.session_state["show_help_tab9"]
+
+    if st.session_state["show_help_tab9"]:
+        with st.expander("📘 Tab Help", expanded=True):
+            st.markdown("""
+                📝 **Purpose:** Automatically identify unusual values in water quality data across multiple stations.
+
+                📊 **What it shows:**
+                - Anomalous data points flagged by statistical methods (e.g., Z-score)
+                - Visualization of normal vs. anomalous values
+
+                🔍 **How to interpret:**
+                - Red points = detected anomalies (outliers)
+                - Blue/green = normal expected range
+                - Review data range and sampling date for possible error, pollution, or natural event
+
+                ⚠️ **Note:** This analysis requires data from multiple stations. Please ensure you’ve selected multiple stations to detect cross-site anomalies.
+
+                📌 **Use cases:**
+                - Detect possible measurement errors or pollution events
+                - Flag outlier samples for manual review
+                - Complement QA/QC and alert systems
+            """)
+
+    try:
+        z_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
+        z_df = z_df.dropna(subset=["ResultMeasureValue"])
+
+        if z_df.empty:
+            st.warning("⚠️ No valid data available for anomaly detection.")
+        else:
+            # Compute Z-score and flag anomalies
+            z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
+                lambda x: (x - x.mean()) / x.std(ddof=0)
+            )
+            z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
+
+            available_names = z_df["Name"].dropna().unique().tolist()
+            selected_names = st.multiselect("📍 Select stations to display", available_names, default=available_names[:5])
+
+            filtered = z_df[z_df["Name"].isin(selected_names)]
+            anomalies = filtered[filtered["is_anomaly"]]
+
+            st.markdown("### 📌 Selected Station Coordinates")
+            coords_df = filtered[["Name", "Latitude", "Longitude"]].drop_duplicates()
+            st.dataframe(coords_df)
+
+            st.write(f"🔍 Found **{len(anomalies)} anomalies** in selected stations with |Z-score| > 3")
+            st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
+
+            csv_anom = anomalies.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
+    except Exception as e:
+        st.error(f"❌ Failed to detect anomalies: {e}")
+       
+#tab 10
+# Tab 10: KMeans Clustering of Selected Stations
+with tab10:
+    st.subheader("📍 KMeans Clustering of Selected Stations")
+
+    if "show_help_tab10" not in st.session_state:
+        st.session_state["show_help_tab10"] = False
+
+    col1, col2 = st.columns([1, 9])
+    with col1:
+        if st.button("❔", key="toggle_help_tab10"):
+            st.session_state["show_help_tab10"] = not st.session_state["show_help_tab10"]
+
+    if st.session_state["show_help_tab10"]:
+        with st.expander("📘 Tab Help", expanded=True):
+            st.markdown("""
+                📝 **Purpose:** Group monitoring stations into clusters based on water quality characteristics using KMeans.
+
+                📊 **What it shows:**
+                - A scatter plot of stations in reduced 2D space (via PCA)
+                - Color-coded clusters
+
+                🔍 **How to interpret:**
+                - Points close together = similar water quality profiles
+                - Different colors = different clusters
+                - Use legend or hover info to identify stations
+
+                ⚠️ **Note:** Please select multiple stations to enable clustering.
+
+                📌 **Use cases:**
+                - Group sites for similar treatment strategies
+                - Identify unique or extreme stations
+                - Support regional analysis or reporting
+            """)
+
+    try:
+        cluster_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
+        cluster_df = cluster_df.dropna(subset=["ResultMeasureValue"])
+
+        all_names = cluster_df["Name"].dropna().unique().tolist()
+        selected_names = st.multiselect("📍 Select stations for clustering", all_names, default=all_names[:5])
+
+        filtered = cluster_df[cluster_df["Name"].isin(selected_names)]
+
+        pivot = (
+            filtered
+            .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
+            .mean()
+            .unstack()
+            .dropna()
+        )
+
+        if pivot.empty or pivot.shape[0] < 2:
+            st.info("❗ Not enough valid stations for clustering.")
+        else:
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.cluster import KMeans
+            from sklearn.decomposition import PCA
+
+            num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
+
+            # Standardize
+            scaled = StandardScaler().fit_transform(pivot)
+
+            # KMeans clustering
+            kmeans = KMeans(n_clusters=num_clusters, random_state=42)
+            clusters = kmeans.fit_predict(scaled)
+
+            pivot["Cluster"] = clusters
+            pivot.reset_index(inplace=True)
+
+            merged = pivot.merge(
+                df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
+                on="StationKey", how="left"
+            )
+
+            st.markdown("### 📋 Clustered Station Summary")
+            st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
+
+            csv_clus = merged.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Clustering Data", data=csv_clus, file_name="clustered_stations.csv")
+
+            # PCA Plot
             try:
-                heatmap_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ActivityStartDate", "ResultMeasureValue"])
+                pca = PCA(n_components=2)
+                pca_result = pca.fit_transform(scaled)
+                merged["PC1"] = pca_result[:, 0]
+                merged["PC2"] = pca_result[:, 1]
 
-                time_mode = st.radio("🕒 Aggregation Level", ["Monthly", "Seasonal", "Yearly"], horizontal=True)
-
-                if time_mode == "Monthly":
-                    heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.to_period("M").astype(str)
-                elif time_mode == "Yearly":
-                    heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
-                elif time_mode == "Seasonal":
-                    heatmap_df["Season"] = heatmap_df["ActivityStartDate"].dt.month.apply(get_season)
-                    heatmap_df["Year"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
-                    heatmap_df["TimeGroup"] = heatmap_df["Year"] + " - " + heatmap_df["Season"]
-
-                for param in selected:
-                    param_df = heatmap_df[heatmap_df["CharacteristicName"] == param].copy()
-
-                    if param_df.empty:
-                        st.warning(f"⚠️ No data available for {param}")
-                        continue
-
-                    pivot = pd.pivot_table(
-                        param_df,
-                        values="ResultMeasureValue",
-                        index="StationKey",
-                        columns="TimeGroup",
-                        aggfunc="mean"
-                    ).sort_index()
-
-                    if pivot.empty:
-                        st.warning(f"⚠️ No data to display heatmap for {param}")
-                        continue
-
-                    st.markdown(f"### 🔥 Heatmap for `{param}` ({time_mode})")
-                    fig_hm, ax_hm = plt.subplots(figsize=(12, max(4, len(pivot) * 0.4)))
-                    sns.heatmap(pivot, cmap="coolwarm", linewidths=0.5, linecolor="gray", ax=ax_hm)
-                    ax_hm.set_title(f"{param} - {time_mode} Heatmap", fontsize=14)
-                    ax_hm.set_xlabel(time_mode)
-                    ax_hm.set_ylabel("Station")
-                    plt.xticks(rotation=45)
-                    st.pyplot(fig_hm)
-
-                    buf_hm = BytesIO()
-                    fig_hm.savefig(buf_hm, format="png", bbox_inches="tight")
-                    st.download_button(
-                        label=f"💾 Download Heatmap for {param}",
-                        data=buf_hm.getvalue(),
-                        file_name=f"heatmap_{param}_{time_mode.lower()}.png"
-                    )
+                fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
+                for i in range(num_clusters):
+                    sub = merged[merged["Cluster"] == i]
+                    ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
+                ax_pca.set_title("PCA View of Clusters")
+                ax_pca.set_xlabel("Principal Component 1")
+                ax_pca.set_ylabel("Principal Component 2")
+                ax_pca.legend()
+                st.pyplot(fig_pca)
             except Exception as e:
-                st.error(f"❌ Failed to generate heatmaps: {e}")
-
-
-#---------------------------tab9
-        with tab9:
-            st.subheader("🚨 Anomaly Detection (Z-score)")
-
-            if "show_help_tab9" not in st.session_state:
-                st.session_state["show_help_tab9"] = False
-
-            col1, col2 = st.columns([1, 9])
-            with col1:
-                if st.button("❔", key="toggle_help_tab9"):
-                    st.session_state["show_help_tab9"] = not st.session_state["show_help_tab9"]
-
-            if st.session_state["show_help_tab9"]:
-                with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""
-                        📝 **Purpose:** Automatically identify unusual values in water quality data across multiple stations.
-
-                        📊 **What it shows:**
-                        - Anomalous data points flagged by statistical methods (e.g., Z-score)
-                        - Visualization of normal vs. anomalous values
-
-                        🔍 **How to interpret:**
-                        - Red points = detected anomalies (outliers)
-                        - Blue/green = normal expected range
-                        - Review data range and sampling date for possible error, pollution, or natural event
-
-                        ⚠️ **Note:** This analysis requires data from multiple stations. Please ensure you’ve selected multiple stations to detect cross-site anomalies.
-
-                        📌 **Use cases:**
-                        - Detect possible measurement errors or pollution events
-                        - Flag outlier samples for manual review
-                        - Complement QA/QC and alert systems
-                    """)
-
-            try:
-                z_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
-                z_df = z_df.dropna(subset=["ResultMeasureValue"])
-
-                if z_df.empty:
-                    st.warning("⚠️ No valid data available for anomaly detection.")
-                else:
-                    z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
-                        lambda x: (x - x.mean()) / x.std(ddof=0)
-                    )
-                    z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
-
-                    available_names = z_df["Name"].dropna().unique().tolist()
-                    selected_names = st.multiselect("📍 Select stations to display", available_names, default=available_names[:5])
-
-                    filtered = z_df[z_df["Name"].isin(selected_names)]
-                    anomalies = filtered[filtered["is_anomaly"]]
-
-                    st.markdown("### 📌 Selected Station Coordinates")
-                    coords_df = filtered[["Name", "Latitude", "Longitude"]].drop_duplicates()
-                    st.dataframe(coords_df)
-
-                    st.write(f"🔍 Found **{len(anomalies)} anomalies** in selected stations with |Z-score| > 3")
-                    st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
-
-                    csv_anom = anomalies.to_csv(index=False).encode("utf-8")
-                    st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
-            except Exception as e:
-                st.error(f"❌ Failed to detect anomalies: {e}")
-
-
-#----------------------tab10
-        with tab10:
-            st.subheader("📍 KMeans Clustering of Selected Stations")
-
-            if "show_help_tab10" not in st.session_state:
-                st.session_state["show_help_tab10"] = False
-
-            col1, col2 = st.columns([1, 9])
-            with col1:
-                if st.button("❔", key="toggle_help_tab10"):
-                    st.session_state["show_help_tab10"] = not st.session_state["show_help_tab10"]
-
-            if st.session_state["show_help_tab10"]:
-                with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""
-                        📝 **Purpose:** Group monitoring stations into clusters based on water quality characteristics using KMeans.
-
-                        📊 **What it shows:**
-                        - A scatter plot of stations in reduced 2D space (via PCA)
-                        - Color-coded clusters
-
-                        🔍 **How to interpret:**
-                        - Points close together = similar water quality profiles
-                        - Different colors = different clusters
-                        - Use legend or hover info to identify stations
-
-                        ⚠️ **Note:** Please select multiple stations to enable clustering.
-
-                        📌 **Use cases:**
-                        - Group sites for similar treatment strategies
-                        - Identify unique or extreme stations
-                        - Support regional analysis or reporting
-                    """)
-
-            try:
-                cluster_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
-                cluster_df = cluster_df.dropna(subset=["ResultMeasureValue"])
-
-                all_names = cluster_df["Name"].dropna().unique().tolist()
-                selected_names = st.multiselect("📍 Select stations for clustering", all_names, default=all_names[:5])
-
-                filtered = cluster_df[cluster_df["Name"].isin(selected_names)]
-
-                pivot = (
-                    filtered
-                    .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
-                    .mean()
-                    .unstack()
-                    .dropna()
-                )
-
-                if pivot.empty or pivot.shape[0] < 2:
-                    st.info("❗ Not enough valid stations for clustering.")
-                else:
-                    from sklearn.preprocessing import StandardScaler
-                    from sklearn.cluster import KMeans
-                    from sklearn.decomposition import PCA
-
-                    num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
-
-                    scaled = StandardScaler().fit_transform(pivot)
-                    kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-                    clusters = kmeans.fit_predict(scaled)
-
-                    pivot["Cluster"] = clusters
-                    pivot.reset_index(inplace=True)
-
-                    merged = pivot.merge(
-                        df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
-                        on="StationKey", how="left"
-                    )
-
-                    st.markdown("### 📋 Clustered Station Summary")
-                    st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
-
-                    csv_clus = merged.to_csv(index=False).encode("utf-8")
-                    st.download_button("💾 Download Clustering Data", data=csv_clus, file_name="clustered_stations.csv")
-
-                    try:
-                        pca = PCA(n_components=2)
-                        pca_result = pca.fit_transform(scaled)
-                        merged["PC1"] = pca_result[:, 0]
-                        merged["PC2"] = pca_result[:, 1]
-
-                        fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
-                        for i in range(num_clusters):
-                            sub = merged[merged["Cluster"] == i]
-                            ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
-                        ax_pca.set_title("PCA View of Clusters")
-                        ax_pca.set_xlabel("Principal Component 1")
-                        ax_pca.set_ylabel("Principal Component 2")
-                        ax_pca.legend()
-                        st.pyplot(fig_pca)
-                    except Exception as e:
-                        st.warning(f"⚠️ PCA scatter plot could not be generated: {e}")
-            except Exception as e:
-                st.error(f"❌ Failed to perform clustering: {e}")
-
+                st.warning(f"⚠️ PCA scatter plot could not be generated: {e}")
+    except Exception as e:
+        st.error(f"❌ Failed to perform clustering: {e}")
