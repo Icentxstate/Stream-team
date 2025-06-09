@@ -89,13 +89,15 @@ st.markdown("""
         border: none;
     }
 
-    /* Make tab labels larger and bold */
+    /* ✅ استایل تب‌ها: بزرگ‌تر و بولد */
     .stTabs [role="tab"] {
         font-size: 18px !important;
         font-weight: bold !important;
         color: #0c6e72 !important;
     }
+
     </style>
+""", unsafe_allow_html=True)
 """, unsafe_allow_html=True)
 # 📌 Orange Welcome Card (only on map view)
 if "view" in st.session_state and st.session_state.view == "map":
