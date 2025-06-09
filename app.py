@@ -264,91 +264,274 @@ elif st.session_state.view == "details":
     subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
     selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
-    if selected:
-        plot_df = (
-            ts_df[ts_df["CharacteristicName"].isin(selected)]
-            .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
-            .dropna(how='all')
-        )
+    # ✅ همیشه تب‌ها را تعریف کن (حتی اگر selected خالی باشد)
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+        "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
+        "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
+        "🚨 Anomaly Detection", "📍 Clustering"
+    ])
 
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-            "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
-            "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
-            "🚨 Anomaly Detection", "📍 Clustering"
-        ])
-
-        # Tab 1: Time Series
+    # ✅ اگر چیزی انتخاب نشده، فقط هشدار بده
+    if not selected:
+        for tab in [tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10]:
+            with tab:
+                st.warning("⚠️ Please select at least one parameter to display results.")
+    else:
+        # ✅ فقط اگر selected پر بود، بقیه تب‌ها رو پر کن
         with tab1:
             st.subheader("📈 Time Series")
-            fig, ax = plt.subplots(figsize=(10, 5))
-            for col in plot_df.columns:
-                ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
-            ax.set_ylabel("Value")
-            ax.set_xlabel("Date")
-            ax.legend()
-            st.pyplot(fig)
 
-            buf_ts = BytesIO()
-            fig.savefig(buf_ts, format="png")
-            st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
+            if "show_help_tab1" not in st.session_state:
+                st.session_state["show_help_tab1"] = False
 
-        # Tab 2: Scatter Plot
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab1"):
+                    st.session_state["show_help_tab1"] = not st.session_state["show_help_tab1"]
+
+            if st.session_state["show_help_tab1"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Visualize how selected water quality parameters change over time at the selected station.
+
+                        📊 **What it shows:**
+                        - Long-term and short-term variations
+                        - Seasonal patterns or unexpected spikes
+                        - Overall trends (upward, downward, or stable)
+
+                        🔍 **How to interpret:**
+                        - Look for consistent increases or decreases that indicate a long-term trend.
+                        - Identify seasonal behavior (e.g., higher temperatures in summer).
+                        - Spot sudden spikes or drops, which may signal pollution events or measurement errors.
+
+                        📌 **Use cases:**
+                        - Evaluate the effectiveness of pollution control efforts.
+                        - Understand environmental impacts over time.
+                        - Identify critical times for monitoring or interventions.
+                    """)
+
+            try:
+                if plot_df.empty:
+                    st.info("⚠️ No valid time series data available for the selected parameters.")
+                else:
+                    fig, ax = plt.subplots(figsize=(10, 5))
+                    for col in plot_df.columns:
+                        ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
+                    ax.set_ylabel("Value")
+                    ax.set_xlabel("Date")
+                    ax.set_title("Time Series of Selected Parameters")
+                    ax.legend()
+                    st.pyplot(fig)
+
+                    buf_ts = BytesIO()
+                    fig.savefig(buf_ts, format="png")
+                    st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
+            except Exception as e:
+                st.error(f"❌ Failed to generate time series plot: {e}")
+
+############### tab2         
         with tab2:
             st.subheader("📉 Scatter Plot")
+
+            if "show_help_tab2" not in st.session_state:
+                st.session_state["show_help_tab2"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab2"):
+                    st.session_state["show_help_tab2"] = not st.session_state["show_help_tab2"]
+
+            if st.session_state["show_help_tab2"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Explore the relationship between two selected water quality parameters 
+                        at the selected station.
+
+                        📊 **What it shows:**
+                        - Correlation or lack of relationship between two variables
+                        - Outlier behaviors
+                        - Patterns that may suggest causal or co-varying dynamics
+
+                        🔍 **How to interpret:**
+                        - A positive linear trend suggests both parameters increase together.
+                        - A negative trend suggests one increases while the other decreases.
+                        - Scatter without pattern indicates no strong relationship.
+
+                        📌 **Use cases:**
+                        - Discover interactions between parameters (e.g., temperature and DO)
+                        - Identify outlier measurements
+                        - Prepare for correlation or regression analysis
+                    """)
+
             all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
             x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
             y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
 
-            scatter_df = (
-                ts_df[ts_df["CharacteristicName"].isin([x_var, y_var])]
-                .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
-                .dropna()
-            )
+            try:
+                scatter_df = (
+                    ts_df[ts_df["CharacteristicName"].isin([x_var, y_var])]
+                    .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+                    .dropna()
+                )
 
-            if not scatter_df.empty:
-                fig3, ax3 = plt.subplots()
-                ax3.scatter(scatter_df[x_var], scatter_df[y_var], c='steelblue', alpha=0.7)
-                ax3.set_xlabel(x_var)
-                ax3.set_ylabel(y_var)
-                ax3.set_title(f"{y_var} vs {x_var}")
-                st.pyplot(fig3)
+                if scatter_df.empty:
+                    st.info("⚠️ Not enough data to generate scatter plot.")
+                else:
+                    fig2, ax2 = plt.subplots()
+                    ax2.scatter(scatter_df[x_var], scatter_df[y_var], c='steelblue', alpha=0.7)
+                    ax2.set_xlabel(x_var)
+                    ax2.set_ylabel(y_var)
+                    ax2.set_title(f"{y_var} vs {x_var}")
+                    st.pyplot(fig2)
 
-                buf_scatter = BytesIO()
-                fig3.savefig(buf_scatter, format="png")
-                st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
-            else:
-                st.info("Not enough data to generate scatter plot.")
+                    buf_scatter = BytesIO()
+                    fig2.savefig(buf_scatter, format="png")
+                    st.download_button(
+                        "💾 Download Scatter Plot",
+                        data=buf_scatter.getvalue(),
+                        file_name="scatter_plot.png"
+                    )
+            except Exception as e:
+                st.error(f"❌ Failed to generate scatter plot: {e}")
 
         # Tab 3: Summary Statistics
         with tab3:
             st.subheader("📊 Summary Statistics")
-            stats = plot_df.describe().T
-            st.dataframe(stats.style.format("{:.2f}"))
-            csv_stats = stats.to_csv().encode("utf-8")
-            st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
-        # Tab 4: Correlation Heatmap
-        with tab4:
-            st.subheader("🧮 Correlation Heatmap")
-            corr = plot_df.corr()
-            if not corr.empty:
-                fig2, ax2 = plt.subplots(figsize=(8, 6))
-                sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
-                st.pyplot(fig2)
 
-                buf_corr = BytesIO()
-                fig2.savefig(buf_corr, format="png")
-                st.download_button(
-                    "💾 Download Correlation Heatmap",
-                    data=buf_corr.getvalue(),
-                    file_name="correlation_heatmap.png"
-                )
-            else:
-                st.info("Not enough data for correlation heatmap.")
+            if "show_help_tab3" not in st.session_state:
+                st.session_state["show_help_tab3"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab3"):
+                    st.session_state["show_help_tab3"] = not st.session_state["show_help_tab3"]
+
+            if st.session_state["show_help_tab3"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Provide quick numerical summaries for each selected parameter at the station.
+
+                        📊 **What it shows:**
+                        - Count of data points
+                        - Mean, standard deviation
+                        - Minimum, maximum, and quartiles
+
+                        🔍 **How to interpret:**
+                        - Use the mean and standard deviation to understand variability.
+                        - Check for skewed distributions using min/max and quartiles.
+                        - Identify if data is concentrated or dispersed.
+
+                        📌 **Use cases:**
+                        - Compare water quality levels across parameters
+                        - Spot abnormalities (e.g., unusually high variance)
+                        - Use as input for water quality indices or further statistical modeling
+                    """)
+
+            try:
+                if plot_df.empty:
+                    st.info("⚠️ No summary statistics available for the selected parameters.")
+                else:
+                    stats = plot_df.describe().T
+                    st.dataframe(stats.style.format("{:.2f}"))
+
+                    csv_stats = stats.to_csv().encode("utf-8")
+                    st.download_button(
+                        "💾 Download Summary CSV",
+                        data=csv_stats,
+                        file_name="summary_statistics.csv"
+                    )
+            except Exception as e:
+                st.error(f"❌ Failed to compute summary statistics: {e}")
+
+        # Tab 4: Correlation Heatmap
+         with tab4:
+            st.subheader("🧮 Correlation Heatmap")
+
+            if "show_help_tab4" not in st.session_state:
+                st.session_state["show_help_tab4"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab4"):
+                    st.session_state["show_help_tab4"] = not st.session_state["show_help_tab4"]
+
+            if st.session_state["show_help_tab4"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Identify correlations between selected water quality parameters.
+
+                        📊 **What it shows:**
+                        - A matrix of correlation coefficients (-1 to 1)
+                        - Color-coded for visual clarity
+                        - Highlights strong positive or negative relationships
+
+                        🔍 **How to interpret:**
+                        - +1 = perfect positive correlation
+                        - 0 = no correlation
+                        - -1 = perfect negative correlation
+                        - Look for strong values (> 0.7 or < -0.7)
+
+                        📌 **Use cases:**
+                        - Detect relationships for modeling
+                        - Identify redundant variables
+                        - Spot environmental dependencies (e.g., temperature vs. DO)
+                    """)
+
+            try:
+                corr = plot_df.corr()
+
+                if corr.empty:
+                    st.info("⚠️ Not enough data for correlation heatmap.")
+                else:
+                    fig_corr, ax_corr = plt.subplots(figsize=(8, 6))
+                    sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax_corr)
+                    ax_corr.set_title("Correlation Heatmap")
+                    st.pyplot(fig_corr)
+
+                    buf_corr = BytesIO()
+                    fig_corr.savefig(buf_corr, format="png", bbox_inches="tight")
+                    st.download_button(
+                        "💾 Download Correlation Heatmap",
+                        data=buf_corr.getvalue(),
+                        file_name="correlation_heatmap.png"
+                    )
+            except Exception as e:
+                st.error(f"❌ Failed to generate correlation heatmap: {e}")
 
         # Tab 5: Seasonal Boxplot
         with tab5:
             st.subheader("📦 Temporal Boxplots")
 
+            if "show_help_tab5" not in st.session_state:
+                st.session_state["show_help_tab5"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab5"):
+                    st.session_state["show_help_tab5"] = not st.session_state["show_help_tab5"]
+
+            if st.session_state["show_help_tab5"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Visualize seasonal, monthly, or annual distributions of selected parameters.
+
+                        📊 **What it shows:**
+                        - Spread, median, and outliers for each time group
+                        - Seasonal variability
+                        - Changes in distribution over years or months
+
+                        🔍 **How to interpret:**
+                        - Wider boxes = higher variability
+                        - Medians (center lines) show central tendency
+                        - Outlier dots may indicate anomalies
+
+                        📌 **Use cases:**
+                        - Compare wet vs. dry season behavior
+                        - Detect long-term shifts in variability
+                        - Reveal consistent seasonal peaks or troughs
+                    """)
+
+            # Utility function for season label
             def get_season(month):
                 if month in [12, 1, 2]:
                     return "Winter"
@@ -359,107 +542,176 @@ elif st.session_state.view == "details":
                 else:
                     return "Fall"
 
-            seasonal_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
-            seasonal_df["Month"] = seasonal_df["ActivityStartDate"].dt.strftime("%b")
-            seasonal_df["Year"] = seasonal_df["ActivityStartDate"].dt.year
-            seasonal_df["Season"] = seasonal_df["ActivityStartDate"].dt.month.apply(get_season)
+            try:
+                seasonal_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+                seasonal_df["Month"] = seasonal_df["ActivityStartDate"].dt.strftime("%b")
+                seasonal_df["Year"] = seasonal_df["ActivityStartDate"].dt.year
+                seasonal_df["Season"] = seasonal_df["ActivityStartDate"].dt.month.apply(get_season)
 
-            box_type = st.radio("Select Time Grouping:", ["Season", "Month", "Year"], horizontal=True)
+                box_type = st.radio("🕒 Group by:", ["Season", "Month", "Year"], horizontal=True)
 
-            if not seasonal_df.empty:
-                fig5, ax5 = plt.subplots(figsize=(12, 5))
-
-                if box_type == "Season":
-                    sns.boxplot(
-                        x="Season", y="ResultMeasureValue", hue="CharacteristicName",
-                        data=seasonal_df, palette="Set2", ax=ax5
-                    )
-                elif box_type == "Month":
-                    sns.boxplot(
-                        x="Month", y="ResultMeasureValue", hue="CharacteristicName",
-                        data=seasonal_df, palette="Set3",
-                        order=["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-                        ax=ax5
-                    )
+                if seasonal_df.empty:
+                    st.info("⚠️ Not enough data to generate temporal boxplots.")
                 else:
-                    sns.boxplot(
-                        x="Year", y="ResultMeasureValue", hue="CharacteristicName",
-                        data=seasonal_df, palette="Set1", ax=ax5
+                    fig_box, ax_box = plt.subplots(figsize=(12, 5))
+
+                    if box_type == "Season":
+                        sns.boxplot(
+                            x="Season", y="ResultMeasureValue", hue="CharacteristicName",
+                            data=seasonal_df, palette="Set2", ax=ax_box
+                        )
+                    elif box_type == "Month":
+                        sns.boxplot(
+                            x="Month", y="ResultMeasureValue", hue="CharacteristicName",
+                            data=seasonal_df, palette="Set3",
+                            order=["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+                            ax=ax_box
+                        )
+                    else:
+                        sns.boxplot(
+                            x="Year", y="ResultMeasureValue", hue="CharacteristicName",
+                            data=seasonal_df, palette="Set1", ax=ax_box
+                        )
+
+                    ax_box.set_ylabel("Value")
+                    ax_box.set_title(f"{box_type}ly Distribution of Parameters")
+                    st.pyplot(fig_box)
+
+                    buf_box = BytesIO()
+                    fig_box.savefig(buf_box, format="png")
+                    st.download_button(
+                        f"💾 Download {box_type} Boxplot",
+                        data=buf_box.getvalue(),
+                        file_name=f"boxplot_{box_type.lower()}.png"
                     )
-
-                ax5.set_ylabel("Value")
-                st.pyplot(fig5)
-
-                buf5 = BytesIO()
-                fig5.savefig(buf5, format="png")
-                st.download_button("💾 Download Boxplot Image", data=buf5.getvalue(), file_name=f"boxplot_{box_type.lower()}.png")
-            else:
-                st.info("Not enough data to generate temporal boxplots.")
+            except Exception as e:
+                st.error(f"❌ Failed to generate boxplot: {e}")
 
         # Tab 6: Mann-Kendall Trend Analysis
         with tab6:
             st.subheader("📐 Mann-Kendall Trend Test")
 
+            if "show_help_tab6" not in st.session_state:
+                st.session_state["show_help_tab6"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab6"):
+                    st.session_state["show_help_tab6"] = not st.session_state["show_help_tab6"]
+
+            if st.session_state["show_help_tab6"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Detect monotonic trends in selected water quality parameters over time.
+
+                        📊 **What it shows:**
+                        - Direction and strength of trend (increasing, decreasing, or no trend)
+                        - Statistical significance of each trend
+                        - Tau correlation and p-value
+
+                        🔍 **How to interpret:**
+                        - **Trend**: “increasing” or “decreasing” means significant direction.
+                        - **Tau**: strength of correlation (closer to ±1 = stronger).
+                        - **p-value**: significance (p < 0.05 = statistically significant).
+
+                        📌 **Use cases:**
+                        - Long-term environmental monitoring
+                        - Evaluating effectiveness of management strategies
+                        - Supporting scientific publications
+                    """)
+
             try:
                 import pymannkendall as mk
             except ImportError:
-                st.error("Please install 'pymannkendall' using pip install pymannkendall.")
+                st.error("Please install `pymannkendall` using `pip install pymannkendall`.")
                 st.stop()
 
-            trend_results = []
+            try:
+                trend_results = []
 
-            for param in selected:
-                series = (
-                    ts_df[ts_df["CharacteristicName"] == param]
-                    .sort_values("ActivityStartDate")
-                    .set_index("ActivityStartDate")["ResultMeasureValue"]
-                    .dropna()
-                )
+                for param in selected:
+                    series = (
+                        ts_df[ts_df["CharacteristicName"] == param]
+                        .sort_values("ActivityStartDate")
+                        .set_index("ActivityStartDate")["ResultMeasureValue"]
+                        .dropna()
+                    )
 
-                if len(series) >= 8:
-                    try:
-                        result = mk.original_test(series)
+                    if len(series) >= 8:
+                        try:
+                            result = mk.original_test(series)
+                            trend_results.append({
+                                "Parameter": param,
+                                "Trend": result.trend,
+                                "Tau": result.Tau,
+                                "p-value": result.p,
+                                "S": result.S,
+                                "n": result.n
+                            })
+                        except Exception as e:
+                            trend_results.append({
+                                "Parameter": param,
+                                "Trend": f"Error: {e}",
+                                "Tau": None,
+                                "p-value": None,
+                                "S": None,
+                                "n": len(series)
+                            })
+                    else:
                         trend_results.append({
                             "Parameter": param,
-                            "Trend": result.trend,
-                            "p-value": result.p,
-                            "Tau": result.Tau,
-                            "S": result.S,
-                            "n": result.n
-                        })
-                    except Exception as e:
-                        trend_results.append({
-                            "Parameter": param,
-                            "Trend": f"Error: {e}",
-                            "p-value": None,
+                            "Trend": "Insufficient data",
                             "Tau": None,
+                            "p-value": None,
                             "S": None,
                             "n": len(series)
                         })
-                else:
-                    trend_results.append({
-                        "Parameter": param,
-                        "Trend": "Insufficient Data",
-                        "p-value": None,
-                        "Tau": None,
-                        "S": None,
-                        "n": len(series)
-                    })
 
-            trend_df = pd.DataFrame(trend_results)
-            trend_df["p-value"] = trend_df["p-value"].apply(lambda x: f"{x:.4f}" if pd.notnull(x) else "NA")
-            trend_df["Tau"] = trend_df["Tau"].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "NA")
+                trend_df = pd.DataFrame(trend_results)
+                trend_df["p-value"] = trend_df["p-value"].apply(lambda x: f"{x:.4f}" if pd.notnull(x) else "NA")
+                trend_df["Tau"] = trend_df["Tau"].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "NA")
 
-            st.dataframe(trend_df)
+                st.dataframe(trend_df)
 
-            csv_trend = trend_df.to_csv(index=False).encode("utf-8")
-            st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
+                csv_trend = trend_df.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
+            except Exception as e:
+                st.error(f"❌ Failed to perform trend analysis: {e}")
 
 
         # Tab 7: Water Quality Index (WQI)
         with tab7:
             st.subheader("💧 Water Quality Index (WQI)")
+
+            if "show_help_tab7" not in st.session_state:
+                st.session_state["show_help_tab7"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab7"):
+                    st.session_state["show_help_tab7"] = not st.session_state["show_help_tab7"]
+
+            if st.session_state["show_help_tab7"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Aggregate selected parameters into a single Water Quality Index (WQI) score.
+
+                        📊 **What it shows:**
+                        - Weighted score (0–100) representing water quality
+                        - Monthly trend of WQI over time
+                        - Classification into quality categories (Poor, Moderate, Good, Excellent)
+
+                        🔍 **How to interpret:**
+                        - Higher WQI = better water quality.
+                        - Use trends to detect improvement or degradation.
+                        - Weights should reflect importance of each parameter (e.g., DO > TDS).
+
+                        📌 **Use cases:**
+                        - Simplify reporting for stakeholders
+                        - Compare water quality across sites and times
+                        - Integrate into dashboards and alerts
+                    """)
 
             wqi_df = ts_df.copy()
             parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
@@ -471,7 +723,12 @@ elif st.session_state.view == "details":
                 weights = {}
                 total_weight = 0.0
                 for param in selected_wqi_params:
-                    w = st.slider(f"Weight for {param}", 0.0, 1.0, round(1.0 / len(selected_wqi_params), 2), 0.05, key=f"w_{param}")
+                    w = st.slider(
+                        f"Weight for {param}",
+                        0.0, 1.0,
+                        round(1.0 / len(selected_wqi_params), 2),
+                        0.05, key=f"w_{param}"
+                    )
                     weights[param] = w
                     total_weight += w
 
@@ -514,11 +771,39 @@ elif st.session_state.view == "details":
             else:
                 st.info("Please select at least one parameter for WQI.")
 
+
         # Tab 8: Spatio-Temporal Heatmap
         with tab8:
             st.subheader("🗺️ Spatio-Temporal Heatmap")
 
-            time_mode = st.radio("🕒 Aggregation Level", ["Monthly", "Seasonal", "Yearly"], horizontal=True)
+            if "show_help_tab8" not in st.session_state:
+                st.session_state["show_help_tab8"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab8"):
+                    st.session_state["show_help_tab8"] = not st.session_state["show_help_tab8"]
+
+            if st.session_state["show_help_tab8"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Visualize how parameter values vary across stations and over time.
+
+                        📊 **What it shows:**
+                        - Matrix of values for each station across time periods
+                        - Temporal evolution of spatial measurements
+                        - Useful for identifying hotspots or changes in water quality
+
+                        🔍 **How to interpret:**
+                        - Darker cells indicate higher values
+                        - Trends across rows show time variation at each station
+                        - Trends across columns show differences between stations
+
+                        📌 **Use cases:**
+                        - Detect areas with rising or declining water quality
+                        - Spot seasonal or annual hotspots
+                        - Compare stations in a watershed over time
+                    """)
 
             def get_season(month):
                 if month in [12, 1, 2]:
@@ -530,157 +815,223 @@ elif st.session_state.view == "details":
                 else:
                     return "Fall"
 
-            heatmap_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ActivityStartDate", "ResultMeasureValue"])
+            try:
+                heatmap_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ActivityStartDate", "ResultMeasureValue"])
 
-            if time_mode == "Monthly":
-                heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.to_period("M").astype(str)
-            elif time_mode == "Yearly":
-                heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
-            elif time_mode == "Seasonal":
-                heatmap_df["Season"] = heatmap_df["ActivityStartDate"].dt.month.apply(get_season)
-                heatmap_df["Year"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
-                heatmap_df["TimeGroup"] = heatmap_df["Year"] + " - " + heatmap_df["Season"]
+                time_mode = st.radio("🕒 Aggregation Level", ["Monthly", "Seasonal", "Yearly"], horizontal=True)
 
-            for param in selected:
-                param_df = heatmap_df[heatmap_df["CharacteristicName"] == param].copy()
+                if time_mode == "Monthly":
+                    heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.to_period("M").astype(str)
+                elif time_mode == "Yearly":
+                    heatmap_df["TimeGroup"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
+                elif time_mode == "Seasonal":
+                    heatmap_df["Season"] = heatmap_df["ActivityStartDate"].dt.month.apply(get_season)
+                    heatmap_df["Year"] = heatmap_df["ActivityStartDate"].dt.year.astype(str)
+                    heatmap_df["TimeGroup"] = heatmap_df["Year"] + " - " + heatmap_df["Season"]
 
-                if param_df.empty:
-                    st.warning(f"No data available for {param}")
-                    continue
+                for param in selected:
+                    param_df = heatmap_df[heatmap_df["CharacteristicName"] == param].copy()
 
-                pivot = pd.pivot_table(
-                    param_df,
-                    values="ResultMeasureValue",
-                    index="StationKey",
-                    columns="TimeGroup",
-                    aggfunc="mean"
-                ).sort_index()
+                    if param_df.empty:
+                        st.warning(f"⚠️ No data available for {param}")
+                        continue
 
-                if pivot.empty:
-                    st.warning(f"No data to display heatmap for {param}")
-                    continue
+                    pivot = pd.pivot_table(
+                        param_df,
+                        values="ResultMeasureValue",
+                        index="StationKey",
+                        columns="TimeGroup",
+                        aggfunc="mean"
+                    ).sort_index()
 
-                st.markdown(f"### 🔥 Heatmap for {param} ({time_mode})")
-                fig_hm, ax_hm = plt.subplots(figsize=(12, max(4, len(pivot) * 0.4)))
-                sns.heatmap(pivot, cmap="coolwarm", linewidths=0.5, linecolor="gray", ax=ax_hm)
-                ax_hm.set_title(f"{param} - {time_mode} Heatmap", fontsize=14)
-                ax_hm.set_xlabel(time_mode)
-                ax_hm.set_ylabel("Station")
-                plt.xticks(rotation=45)
-                st.pyplot(fig_hm)
+                    if pivot.empty:
+                        st.warning(f"⚠️ No data to display heatmap for {param}")
+                        continue
 
-                buf_hm = BytesIO()
-                fig_hm.savefig(buf_hm, format="png", bbox_inches="tight")
-                st.download_button(
-                    label=f"💾 Download Heatmap for {param}",
-                    data=buf_hm.getvalue(),
-                    file_name=f"heatmap_{param}_{time_mode.lower()}.png"
+                    st.markdown(f"### 🔥 Heatmap for `{param}` ({time_mode})")
+                    fig_hm, ax_hm = plt.subplots(figsize=(12, max(4, len(pivot) * 0.4)))
+                    sns.heatmap(pivot, cmap="coolwarm", linewidths=0.5, linecolor="gray", ax=ax_hm)
+                    ax_hm.set_title(f"{param} - {time_mode} Heatmap", fontsize=14)
+                    ax_hm.set_xlabel(time_mode)
+                    ax_hm.set_ylabel("Station")
+                    plt.xticks(rotation=45)
+                    st.pyplot(fig_hm)
+
+                    buf_hm = BytesIO()
+                    fig_hm.savefig(buf_hm, format="png", bbox_inches="tight")
+                    st.download_button(
+                        label=f"💾 Download Heatmap for {param}",
+                        data=buf_hm.getvalue(),
+                        file_name=f"heatmap_{param}_{time_mode.lower()}.png"
+                    )
+            except Exception as e:
+                st.error(f"❌ Failed to generate heatmaps: {e}")
+
+
+#---------------------------tab9
+        with tab9:
+            st.subheader("🚨 Anomaly Detection (Z-score)")
+
+            if "show_help_tab9" not in st.session_state:
+                st.session_state["show_help_tab9"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab9"):
+                    st.session_state["show_help_tab9"] = not st.session_state["show_help_tab9"]
+
+            if st.session_state["show_help_tab9"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Automatically identify unusual values in water quality data across multiple stations.
+
+                        📊 **What it shows:**
+                        - Anomalous data points flagged by statistical methods (e.g., Z-score)
+                        - Visualization of normal vs. anomalous values
+
+                        🔍 **How to interpret:**
+                        - Red points = detected anomalies (outliers)
+                        - Blue/green = normal expected range
+                        - Review data range and sampling date for possible error, pollution, or natural event
+
+                        ⚠️ **Note:** This analysis requires data from multiple stations. Please ensure you’ve selected multiple stations to detect cross-site anomalies.
+
+                        📌 **Use cases:**
+                        - Detect possible measurement errors or pollution events
+                        - Flag outlier samples for manual review
+                        - Complement QA/QC and alert systems
+                    """)
+
+            try:
+                z_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
+                z_df = z_df.dropna(subset=["ResultMeasureValue"])
+
+                if z_df.empty:
+                    st.warning("⚠️ No valid data available for anomaly detection.")
+                else:
+                    z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
+                        lambda x: (x - x.mean()) / x.std(ddof=0)
+                    )
+                    z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
+
+                    available_names = z_df["Name"].dropna().unique().tolist()
+                    selected_names = st.multiselect("📍 Select stations to display", available_names, default=available_names[:5])
+
+                    filtered = z_df[z_df["Name"].isin(selected_names)]
+                    anomalies = filtered[filtered["is_anomaly"]]
+
+                    st.markdown("### 📌 Selected Station Coordinates")
+                    coords_df = filtered[["Name", "Latitude", "Longitude"]].drop_duplicates()
+                    st.dataframe(coords_df)
+
+                    st.write(f"🔍 Found **{len(anomalies)} anomalies** in selected stations with |Z-score| > 3")
+                    st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
+
+                    csv_anom = anomalies.to_csv(index=False).encode("utf-8")
+                    st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
+            except Exception as e:
+                st.error(f"❌ Failed to detect anomalies: {e}")
+
+
+#----------------------tab10
+        with tab10:
+            st.subheader("📍 KMeans Clustering of Selected Stations")
+
+            if "show_help_tab10" not in st.session_state:
+                st.session_state["show_help_tab10"] = False
+
+            col1, col2 = st.columns([1, 9])
+            with col1:
+                if st.button("❔", key="toggle_help_tab10"):
+                    st.session_state["show_help_tab10"] = not st.session_state["show_help_tab10"]
+
+            if st.session_state["show_help_tab10"]:
+                with st.expander("📘 Tab Help", expanded=True):
+                    st.markdown("""
+                        📝 **Purpose:** Group monitoring stations into clusters based on water quality characteristics using KMeans.
+
+                        📊 **What it shows:**
+                        - A scatter plot of stations in reduced 2D space (via PCA)
+                        - Color-coded clusters
+
+                        🔍 **How to interpret:**
+                        - Points close together = similar water quality profiles
+                        - Different colors = different clusters
+                        - Use legend or hover info to identify stations
+
+                        ⚠️ **Note:** Please select multiple stations to enable clustering.
+
+                        📌 **Use cases:**
+                        - Group sites for similar treatment strategies
+                        - Identify unique or extreme stations
+                        - Support regional analysis or reporting
+                    """)
+
+            try:
+                cluster_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
+                cluster_df = cluster_df.dropna(subset=["ResultMeasureValue"])
+
+                all_names = cluster_df["Name"].dropna().unique().tolist()
+                selected_names = st.multiselect("📍 Select stations for clustering", all_names, default=all_names[:5])
+
+                filtered = cluster_df[cluster_df["Name"].isin(selected_names)]
+
+                pivot = (
+                    filtered
+                    .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
+                    .mean()
+                    .unstack()
+                    .dropna()
                 )
 
-with tab9:
-    if selected:
-        st.subheader("🚨 Anomaly Detection (Z-score)")
+                if pivot.empty or pivot.shape[0] < 2:
+                    st.info("❗ Not enough valid stations for clustering.")
+                else:
+                    from sklearn.preprocessing import StandardScaler
+                    from sklearn.cluster import KMeans
+                    from sklearn.decomposition import PCA
 
-        z_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
-        z_df = z_df.dropna(subset=["ResultMeasureValue"])
+                    num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
 
-        if z_df.empty:
-            st.warning("⚠️ No valid data available for anomaly detection.")
-        else:
-            z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
-                lambda x: (x - x.mean()) / x.std(ddof=0)
-            )
-            z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
+                    scaled = StandardScaler().fit_transform(pivot)
+                    kmeans = KMeans(n_clusters=num_clusters, random_state=42)
+                    clusters = kmeans.fit_predict(scaled)
 
-            available_names = z_df["Name"].dropna().unique().tolist()
-            selected_names = st.multiselect("📍 Select stations to display", available_names, default=available_names[:5])
+                    pivot["Cluster"] = clusters
+                    pivot.reset_index(inplace=True)
 
-            filtered = z_df[z_df["Name"].isin(selected_names)]
-            anomalies = filtered[filtered["is_anomaly"]]
+                    merged = pivot.merge(
+                        df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
+                        on="StationKey", how="left"
+                    )
 
-            st.markdown("### 📌 Selected Station Coordinates")
-            coords_df = filtered[["Name", "Latitude", "Longitude"]].drop_duplicates()
-            st.dataframe(coords_df)
+                    st.markdown("### 📋 Clustered Station Summary")
+                    st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
 
-            st.write(f"🔍 Found {len(anomalies)} anomalies in selected stations with |Z-score| > 3")
-            st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
+                    csv_clus = merged.to_csv(index=False).encode("utf-8")
+                    st.download_button("💾 Download Clustering Data", data=csv_clus, file_name="clustered_stations.csv")
 
-            csv_anom = anomalies.to_csv(index=False).encode("utf-8")
-            st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
-    else:
-        st.warning("⚠️ Please select at least one parameter.")
+                    try:
+                        pca = PCA(n_components=2)
+                        pca_result = pca.fit_transform(scaled)
+                        merged["PC1"] = pca_result[:, 0]
+                        merged["PC2"] = pca_result[:, 1]
 
-with tab10:
-    if selected:
-        st.subheader("📍 KMeans Clustering of Selected Stations")
-
-        cluster_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
-        cluster_df = cluster_df.dropna(subset=["ResultMeasureValue"])
-
-        # انتخاب ایستگاه‌ها
-        all_names = cluster_df["Name"].dropna().unique().tolist()
-        selected_names = st.multiselect("📍 Select stations for clustering", all_names, default=all_names[:5])
-
-        filtered = cluster_df[cluster_df["Name"].isin(selected_names)]
-
-        # Pivot: StationKey × Parameter → average value
-        pivot = (
-            filtered
-            .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
-            .mean()
-            .unstack()
-            .dropna()
-        )
-
-        if pivot.empty or pivot.shape[0] < 2:
-            st.info("❗ Not enough valid stations for clustering.")
-        else:
-            from sklearn.preprocessing import StandardScaler
-            from sklearn.cluster import KMeans
-            from sklearn.decomposition import PCA
-
-            num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
-
-            scaled = StandardScaler().fit_transform(pivot)
-            kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-            clusters = kmeans.fit_predict(scaled)
-
-            pivot["Cluster"] = clusters
-            pivot.reset_index(inplace=True)
-
-            # Merge for info
-            merged = pivot.merge(
-                df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
-                on="StationKey",
-                how="left"
-            )
-
-            st.markdown("### 📋 Clustered Station Summary")
-            st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
-
-            # Download
-            csv_clus = merged.to_csv(index=False).encode("utf-8")
-            st.download_button("💾 Download Clustering Data", data=csv_clus, file_name="clustered_stations.csv")
-
-            # PCA Plot
-            try:
-                pca = PCA(n_components=2)
-                pca_result = pca.fit_transform(scaled)
-                merged["PC1"] = pca_result[:, 0]
-                merged["PC2"] = pca_result[:, 1]
-
-                fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
-                for i in range(num_clusters):
-                    sub = merged[merged["Cluster"] == i]
-                    ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
-                ax_pca.set_title("PCA View of Clusters")
-                ax_pca.set_xlabel("Principal Component 1")
-                ax_pca.set_ylabel("Principal Component 2")
-                ax_pca.legend()
-                st.pyplot(fig_pca)
+                        fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
+                        for i in range(num_clusters):
+                            sub = merged[merged["Cluster"] == i]
+                            ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
+                        ax_pca.set_title("PCA View of Clusters")
+                        ax_pca.set_xlabel("Principal Component 1")
+                        ax_pca.set_ylabel("Principal Component 2")
+                        ax_pca.legend()
+                        st.pyplot(fig_pca)
+                    except Exception as e:
+                        st.warning(f"⚠️ PCA scatter plot could not be generated: {e}")
             except Exception as e:
-                st.warning("⚠️ PCA scatter plot could not be generated.")
-    else:
-        st.warning("⚠️ Please select at least one parameter.")
-
-
+                st.error(f"❌ Failed to perform clustering: {e}")
+# --- If no parameter selected, show warning in all tabs ---
+else:
+    for tab in [tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10]:
+        with tab:
+            st.warning("⚠️ Please select at least one parameter to display results.")
