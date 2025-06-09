@@ -696,113 +696,109 @@ elif st.session_state.view == "details":
 
 
         # Tab 7: Water Quality Index (WQI)
-        # Tab 7: Water Quality Index (WQI)
-        with tab7:
-            st.subheader("💧 Water Quality Index (WQI)")
+# Tab 7: Water Quality Index (WQI)
+with tab7:
+    st.subheader("💧 Water Quality Index (WQI)")
 
-            if "show_help_tab7" not in st.session_state:
-                st.session_state["show_help_tab7"] = False
+    if "show_help_tab7" not in st.session_state:
+        st.session_state["show_help_tab7"] = False
 
-            col1, col2 = st.columns([1, 9])
-            with col1:
-                if st.button("❔", key="toggle_help_tab7_button"):
-                    st.session_state["show_help_tab7"] = not st.session_state["show_help_tab7"]
+    col1, col2 = st.columns([1, 9])
+    with col1:
+        if st.button("❔", key="toggle_help_tab7"):
+            st.session_state["show_help_tab7"] = not st.session_state["show_help_tab7"]
 
-            if st.session_state["show_help_tab7"]:
-                with st.expander("📘 Tab Help", expanded=True):
-                    st.markdown("""
-                        📝 **Purpose:** Aggregate selected parameters into a single Water Quality Index (WQI) score.
+    if st.session_state["show_help_tab7"]:
+        with st.expander("📘 Tab Help", expanded=True):
+            st.markdown("""
+                📝 **Purpose:** Aggregate selected parameters into a single Water Quality Index (WQI) score.
 
-                        📊 **What it shows:**
-                        - Weighted score (0–100) representing water quality
-                        - Monthly trend of WQI over time
-                        - Classification into quality categories (Poor, Moderate, Good, Excellent)
+                📊 **What it shows:**
+                - Weighted score (0–100) representing water quality
+                - Monthly trend of WQI over time
+                - Classification into quality categories (Poor, Moderate, Good, Excellent)
 
-                        🔍 **How to interpret:**
-                        - Higher WQI = better water quality.
-                        - Use trends to detect improvement or degradation.
-                        - Weights should reflect importance of each parameter.
+                🔍 **How to interpret:**
+                - Higher WQI = better water quality.
+                - Use trends to detect improvement or degradation.
+                - Weights should reflect importance of each parameter (e.g., DO > TDS).
 
-                        📌 **Use cases:**
-                        - Simplify reporting for stakeholders
-                        - Compare water quality across sites and times
-                        - Integrate into dashboards and alerts
+                📌 **Use cases:**
+                - Simplify reporting for stakeholders
+                - Compare water quality across sites and times
+                - Integrate into dashboards and alerts
+            """)
 
-                        ✅ **Recommended Parameters for WQI (based on this dataset):**
-                        - `Dissolved Oxygent (mg/L)`
-                        - `pH`
-                        - `Conductivity (µs/cm)`
-                        - `Water Temperature (°C)`
-                        - `E. Coli Average`
-                        - `Nitrate-Nitrogen (ppm or mg/L)`
+    wqi_df = ts_df.copy()
+    parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
 
-                        🧮 **Tip:** You can adjust the weights based on monitoring priorities. Ensure the total weight equals 1.
-                    """)
+    default_list = [
+        "Dissolved Oxygen (mg/L)",
+        "Conductivity (µS/cm)",
+        "Nitrate-Nitrogen (ppm or mg/L)",
+        "Turbidity (NTU)",
+        "pH"
+    ]
+    valid_defaults = [p for p in default_list if p in parameters]
 
-            wqi_df = ts_df.copy()
-            parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
+    selected_wqi_params = st.multiselect(
+        "🧪 Select parameters for WQI",
+        parameters,
+        default=valid_defaults if valid_defaults else parameters[:3]
+    )
 
-            selected_wqi_params = st.multiselect("🧪 Select parameters for WQI", parameters, default=[
-                "Dissolved Oxygent (mg/L)",
-                "pH",
-                "Conductivity (µs/cm)",
-                "Water Temperature (°C)",
-                "E. Coli Average",
-                "Nitrate-Nitrogen (ppm or mg/L)"
-            ])
+    if selected_wqi_params:
+        st.markdown("### ⚖️ Assign weights (total should sum to 1):")
+        weights = {}
+        total_weight = 0.0
+        for param in selected_wqi_params:
+            w = st.slider(
+                f"Weight for {param}",
+                0.0, 1.0,
+                round(1.0 / len(selected_wqi_params), 2),
+                0.05, key=f"w_{param}"
+            )
+            weights[param] = w
+            total_weight += w
 
-            if selected_wqi_params:
-                st.markdown("### ⚖️ Assign weights (total should sum to 1):")
-                weights = {}
-                total_weight = 0.0
-                for param in selected_wqi_params:
-                    w = st.slider(
-                        f"Weight for {param}",
-                        0.0, 1.0,
-                        round(1.0 / len(selected_wqi_params), 2),
-                        0.05, key=f"w_{param}"
-                    )
-                    weights[param] = w
-                    total_weight += w
+        if abs(total_weight - 1.0) > 0.01:
+            st.warning("⚠️ Total weights must sum to 1. Adjust sliders.")
+        else:
+            norm_df = pd.DataFrame()
 
-                if abs(total_weight - 1.0) > 0.01:
-                    st.warning("⚠️ Total weights must sum to 1. Adjust sliders.")
-                else:
-                    norm_df = pd.DataFrame()
+            for param in selected_wqi_params:
+                sub = wqi_df[wqi_df["CharacteristicName"] == param].copy()
+                sub = sub[["ActivityStartDate", "ResultMeasureValue"]].dropna()
 
-                    for param in selected_wqi_params:
-                        sub = wqi_df[wqi_df["CharacteristicName"] == param].copy()
-                        sub = sub[["ActivityStartDate", "ResultMeasureValue"]].dropna()
+                if sub.empty or sub["ResultMeasureValue"].nunique() <= 1:
+                    st.warning(f"⚠️ Skipping {param} due to insufficient or constant data.")
+                    continue
 
-                        if sub.empty or sub["ResultMeasureValue"].nunique() <= 1:
-                            st.warning(f"⚠️ Skipping {param} due to insufficient or constant data.")
-                            continue
+                sub = sub.set_index("ActivityStartDate").resample("M").mean().reset_index()
+                min_val = sub["ResultMeasureValue"].min()
+                max_val = sub["ResultMeasureValue"].max()
+                sub["Normalized"] = 100 * (sub["ResultMeasureValue"] - min_val) / (max_val - min_val) if max_val != min_val else 0
+                sub["Weighted"] = sub["Normalized"] * weights[param]
+                sub["Parameter"] = param
+                norm_df = pd.concat([norm_df, sub], ignore_index=True)
 
-                        sub = sub.set_index("ActivityStartDate").resample("M").mean().reset_index()
-                        min_val = sub["ResultMeasureValue"].min()
-                        max_val = sub["ResultMeasureValue"].max()
-                        sub["Normalized"] = 100 * (sub["ResultMeasureValue"] - min_val) / (max_val - min_val) if max_val != min_val else 0
-                        sub["Weighted"] = sub["Normalized"] * weights[param]
-                        sub["Parameter"] = param
-                        norm_df = pd.concat([norm_df, sub], ignore_index=True)
-
-                    if norm_df.empty:
-                        st.info("⚠️ No valid data available to compute WQI.")
-                    else:
-                        wqi_monthly = norm_df.groupby("ActivityStartDate")["Weighted"].sum().reset_index()
-                        wqi_monthly["WQI Category"] = pd.cut(
-                            wqi_monthly["Weighted"],
-                            bins=[0, 25, 50, 75, 100],
-                            labels=["Poor", "Moderate", "Good", "Excellent"]
-                        )
-
-                        st.line_chart(wqi_monthly.set_index("ActivityStartDate")["Weighted"])
-                        st.dataframe(wqi_monthly)
-
-                        csv_wqi = wqi_monthly.to_csv(index=False).encode("utf-8")
-                        st.download_button("💾 Download WQI Data", data=csv_wqi, file_name="wqi_results.csv")
+            if norm_df.empty:
+                st.info("⚠️ No valid data available to compute WQI.")
             else:
-                st.info("Please select at least one parameter for WQI.")
+                wqi_monthly = norm_df.groupby("ActivityStartDate")["Weighted"].sum().reset_index()
+                wqi_monthly["WQI Category"] = pd.cut(
+                    wqi_monthly["Weighted"],
+                    bins=[0, 25, 50, 75, 100],
+                    labels=["Poor", "Moderate", "Good", "Excellent"]
+                )
+
+                st.line_chart(wqi_monthly.set_index("ActivityStartDate")["Weighted"])
+                st.dataframe(wqi_monthly)
+
+                csv_wqi = wqi_monthly.to_csv(index=False).encode("utf-8")
+                st.download_button("💾 Download WQI Data", data=csv_wqi, file_name="wqi_results.csv")
+    else:
+        st.info("Please select at least one parameter for WQI.")
 
         # Tab 8: Spatio-Temporal Heatmap
         with tab8:
