@@ -645,38 +645,3 @@ with tab9:
     else:
         st.warning("⚠️ Please select at least one parameter.")
 
-# --- Tab 9: Anomaly Detection ---
-with tab9:
-    if selected:
-        st.subheader("🚨 Anomaly Detection (Z-score)")
-
-        available_stations = ts_df["Name"].dropna().unique().tolist()
-        selected_stations = st.multiselect("📍 Select stations to view anomalies", available_stations, default=available_stations[:5])
-
-        z_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
-        z_df = z_df.dropna(subset=["ResultMeasureValue"])
-
-        if not z_df.empty:
-            # محاسبه Z-Score روی کل داده‌ها
-            z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
-                lambda x: (x - x.mean()) / x.std(ddof=0)
-            )
-            z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
-
-            # فقط نمایش ایستگاه‌های انتخابی
-            display_df = z_df[z_df["Name"].isin(selected_stations)].copy()
-
-            coords = display_df[["Name", "Latitude", "Longitude"]].drop_duplicates()
-            st.markdown("### 📌 Selected Station Coordinates")
-            st.dataframe(coords)
-
-            anomalies = display_df[display_df["is_anomaly"]]
-            st.write(f"🔍 Found {len(anomalies)} anomalies in selected stations")
-            st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
-
-            csv_anom = anomalies.to_csv(index=False).encode("utf-8")
-            st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies.csv")
-        else:
-            st.warning("⚠️ Not enough valid data to detect anomalies.")
-    else:
-        st.warning("⚠️ Please select at least one parameter.")
