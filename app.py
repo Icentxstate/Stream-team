@@ -621,27 +621,43 @@ with tab8:
     else:
         st.warning("⚠️ Please select at least one parameter.")
 
+
 # --- Tab 9: Anomaly Detection ---
 with tab9:
     if selected:
         st.subheader("🚨 Anomaly Detection (Z-score)")
 
+        # Step 1: کل داده‌ها برای محاسبه Z-score
         z_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
         z_df = z_df.dropna(subset=["ResultMeasureValue"])
 
         if z_df.empty:
             st.warning("⚠️ No valid data available for anomaly detection.")
         else:
+            # Step 2: محاسبه Z-Score روی کل داده‌ها
             z_df["zscore"] = z_df.groupby("CharacteristicName")["ResultMeasureValue"].transform(
                 lambda x: (x - x.mean()) / x.std(ddof=0)
             )
-            anomalies = z_df[np.abs(z_df["zscore"]) > 3]
+            z_df["is_anomaly"] = np.abs(z_df["zscore"]) > 3
 
-            st.write(f"🔍 Found {len(anomalies)} anomalies with |Z-score| > 3")
-            st.dataframe(anomalies[["ActivityStartDate", "CharacteristicName", "ResultMeasureValue", "zscore"]])
+            # Step 3: انتخاب ایستگاه‌ها برای نمایش
+            available_names = z_df["Name"].dropna().unique().tolist()
+            selected_names = st.multiselect("📍 Select stations to display", available_names, default=available_names[:5])
 
+            filtered = z_df[z_df["Name"].isin(selected_names)]
+            anomalies = filtered[filtered["is_anomaly"]]
+
+            # نمایش جدول مختصات
+            st.markdown("### 📌 Selected Station Coordinates")
+            coords_df = filtered[["Name", "Latitude", "Longitude"]].drop_duplicates()
+            st.dataframe(coords_df)
+
+            # نمایش جدول آنومالی
+            st.write(f"🔍 Found {len(anomalies)} anomalies in selected stations with |Z-score| > 3")
+            st.dataframe(anomalies[["ActivityStartDate", "Name", "CharacteristicName", "ResultMeasureValue", "zscore"]])
+
+            # دانلود
             csv_anom = anomalies.to_csv(index=False).encode("utf-8")
-            st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies.csv")
+            st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
     else:
         st.warning("⚠️ Please select at least one parameter.")
-
