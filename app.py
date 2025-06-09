@@ -264,7 +264,6 @@ elif st.session_state.view == "details":
     subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
     selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
 
-    # ✅ Always define tabs first
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
         "📈 Time Series", "📉 Scatter Plot", "📊 Summary Statistics", "🧮 Correlation Heatmap",
         "📦 Boxplot", "📐 Trend Analysis", "💧 WQI", "🗺️ Spatio-Temporal Heatmap",
