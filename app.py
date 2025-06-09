@@ -248,44 +248,65 @@ elif st.session_state.view == "details":
             with tab:
                 st.warning("⚠️ Please select at least one parameter to display results.")
 
-    # ✅ Tab 1: Time Series
-    with tab1:
-        st.subheader("📈 Time Series")
 
-        if "show_help_tab1" not in st.session_state:
-            st.session_state["show_help_tab1"] = False
+# ✅ Tab 1: Time Series
+with tab1:
+    st.subheader("📈 Time Series")
 
-        col1, col2 = st.columns([1, 9])
-        with col1:
-            if st.button("❔", key="toggle_help_tab1_button"):
-                st.session_state["show_help_tab1"] = not st.session_state["show_help_tab1"]
+    # دکمه راهنما (نمایش/پنهان)
+    if "show_help_tab1" not in st.session_state:
+        st.session_state["show_help_tab1"] = False
 
-        if st.session_state["show_help_tab1"]:
-            with st.expander("📘 Tab Help", expanded=True):
-                st.markdown("...")
+    col1, col2 = st.columns([1, 9])
+    with col1:
+        if st.button("❔", key="toggle_help_tab1_button"):
+            st.session_state["show_help_tab1"] = not st.session_state["show_help_tab1"]
 
+    # جعبه راهنما اگر فعال باشد
+    if st.session_state["show_help_tab1"]:
+        with st.expander("📘 Tab Help", expanded=True):
+            st.markdown("""
+                📝 **Purpose:** Visualize how selected water quality parameters change over time at the selected station.
 
-        try:
-            plot_df = (
-                ts_df[ts_df["CharacteristicName"].isin(selected)]
-                .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
-                .dropna()
-            )
+                📊 **What it shows:**
+                - Long-term and short-term variations
+                - Seasonal patterns or unexpected spikes
+                - Overall trends (upward, downward, or stable)
 
-            if plot_df.empty:
-                st.info("⚠️ No valid time series data available for the selected parameters.")
-            else:
-                fig, ax = plt.subplots(figsize=(10, 5))
-                for col in plot_df.columns:
-                    ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
-                ax.set_ylabel("Value")
-                ax.set_xlabel("Date")
-                ax.set_title("Time Series of Selected Parameters")
-                ax.legend()
-                st.pyplot(fig)
+                🔍 **How to interpret:**
+                - Look for consistent increases or decreases that indicate a long-term trend.
+                - Identify seasonal behavior (e.g., higher temperatures in summer).
+                - Spot sudden spikes or drops, which may signal pollution events or measurement errors.
 
-                buf_ts = BytesIO()
-                fig.savefig(buf_ts, format="png")
-                st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
-        except Exception as e:
-            st.error(f"❌ Failed to generate time series plot: {e}")
+                📌 **Use cases:**
+                - Evaluate the effectiveness of pollution control efforts.
+                - Understand environmental impacts over time.
+                - Identify critical times for monitoring or interventions.
+            """)
+
+    # ایجاد نمودار تایم‌سری
+    try:
+        plot_df = (
+            ts_df[ts_df["CharacteristicName"].isin(selected)]
+            .pivot(index="ActivityStartDate", columns="CharacteristicName", values="ResultMeasureValue")
+            .dropna()
+        )
+
+        if plot_df.empty:
+            st.info("⚠️ No valid time series data available for the selected parameters.")
+        else:
+            fig, ax = plt.subplots(figsize=(10, 5))
+            for col in plot_df.columns:
+                ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
+            ax.set_ylabel("Value")
+            ax.set_xlabel("Date")
+            ax.set_title("Time Series of Selected Parameters")
+            ax.legend()
+            st.pyplot(fig)
+
+            # دکمه دانلود تصویر نمودار
+            buf_ts = BytesIO()
+            fig.savefig(buf_ts, format="png")
+            st.download_button("💾 Download Time Series", data=buf_ts.getvalue(), file_name="time_series.png")
+    except Exception as e:
+        st.error(f"❌ Failed to generate time series plot: {e}")
