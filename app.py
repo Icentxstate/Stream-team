@@ -717,6 +717,17 @@ with tab7:
                 - Use trends to detect improvement or degradation.
                 - Weights should reflect importance of each parameter (e.g., DO > TDS).
 
+
+                🧪 **Recommended Parameters for WQI:**
+                - Dissolved Oxygen (mg/L)
+                - pH
+                - Turbidity (NTU)
+                - Nitrate-Nitrogen (mg/L)
+                - Phosphate (mg/L)
+                - Total Dissolved Solids (TDS) or Conductivity (µS/cm)
+                - Water Temperature (°C)
+                - (Optional: Fecal coliform, BOD, etc.)
+
                 📌 **Use cases:**
                 - Simplify reporting for stakeholders
                 - Compare water quality across sites and times
