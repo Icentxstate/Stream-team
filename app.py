@@ -644,48 +644,43 @@ with tab9:
         st.warning("⚠️ Please select at least one parameter.")
 
 # --- Tab 10: Clustering ---
-# --- Tab 10: Clustering ---
 with tab10:
     if selected:
         st.subheader("📍 Clustering (KMeans)")
         from sklearn.cluster import KMeans
+        from io import BytesIO
 
+        # فیلتر داده‌ها بر اساس پارامترهای انتخاب‌شده و داشتن مختصات
         cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
         cluster_df = cluster_df.dropna(subset=["Latitude", "Longitude", "ResultMeasureValue"])
 
         if cluster_df.empty:
             st.warning("⚠️ No data with valid coordinates and values.")
         else:
-            # Group by station (average value per station)
-            grouped = cluster_df.groupby("StationKey")["ResultMeasureValue"].mean().reset_index()
+            # میانگین مقدار برای هر ایستگاه
+            grouped = cluster_df.groupby(["StationKey", "Latitude", "Longitude"])["ResultMeasureValue"].mean().reset_index()
 
-            # Extract latitude and longitude from StationKey
-            try:
-                grouped[["Latitude", "Longitude"]] = grouped["StationKey"].str.split(",", expand=True).astype(float)
-            except Exception as e:
-                st.error("🚫 Could not extract coordinates from StationKey. Make sure it contains 'lat,lon' format.")
-                st.stop()
-
+            st.write(f"🛰️ {len(grouped)} unique monitoring stations found for clustering.")
             n_clusters = st.slider("Select number of clusters:", 2, 10, 4)
 
             if len(grouped) < n_clusters:
                 st.error(f"⚠️ Not enough points to form {n_clusters} clusters. You only have {len(grouped)} stations.")
             else:
-                # Apply clustering
+                # اعمال KMeans
                 kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
                 grouped["Cluster"] = kmeans.labels_
 
-                # Plot clusters
+                # رسم خروجی
                 fig_cluster, ax_cluster = plt.subplots()
-                sns.scatterplot(data=grouped, x="Longitude", y="Latitude", hue="Cluster", palette="tab10", s=80)
-                ax_cluster.set_title("Clustered Monitoring Stations")
+                sns.scatterplot(data=grouped, x="Longitude", y="Latitude", hue="Cluster", palette="tab10", s=100)
+                ax_cluster.set_title("📍 Clustered Monitoring Stations")
                 st.pyplot(fig_cluster)
 
-                # Download button
-                from io import BytesIO
-                buf_clust = BytesIO()
-                fig_cluster.savefig(buf_clust, format="png")
-                st.download_button("💾 Download Cluster Map", data=buf_clust.getvalue(), file_name="clustering_map.png")
+                # دکمه دانلود تصویر
+                buf = BytesIO()
+                fig_cluster.savefig(buf, format="png")
+                st.download_button("💾 Download Cluster Map", data=buf.getvalue(), file_name="clustering_map.png")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
 
