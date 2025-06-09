@@ -624,6 +624,7 @@ with tab7:
     }
 
     wqi_data = ts_df[ts_df["CharacteristicName"].isin(weights.keys())].copy()
+
     if wqi_data.empty:
         st.warning("No WQI-eligible parameters available in dataset.")
     else:
@@ -660,6 +661,8 @@ with tab7:
 
         buf7 = BytesIO()
         fig.savefig(buf7, format="png")
+        st.download_button("💾 Download WQI Plot", data=buf7.getvalue(), file_name="wqi_plot.png")
+
         st.download_button("💾 Download WQI Plot", da_
 with tab8:
     st.subheader("🗺️ Spatio-Temporal Heatmap")
