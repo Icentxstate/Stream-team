@@ -280,6 +280,26 @@ elif st.session_state.view == "details":
         # Tab 1: Time Series
         with tab1:
             st.subheader("📈 Time Series")
+            st.markdown("""
+            📝 **Purpose:** Visualize how selected water quality parameters change over time at the selected station.
+
+            📊 **What it shows:**
+            - Long-term and short-term variations
+            - Seasonal patterns or unexpected spikes
+            - Overall trends (upward, downward, or stable)
+
+                🔍 **How to interpret:**
+                - Look for consistent increases or decreases that indicate a long-term trend.
+            - Identify seasonal behavior (e.g., higher temperatures in summer).
+            - Spot sudden spikes or drops, which may signal pollution events or measurement errors.
+
+            📌 **Use cases:**
+            - Evaluate the effectiveness of pollution control efforts.
+            - Understand environmental impacts over time.
+            - Identify critical times for monitoring or interventions.
+            """)
+
+            
             fig, ax = plt.subplots(figsize=(10, 5))
             for col in plot_df.columns:
                 ax.plot(plot_df.index, plot_df[col], 'o-', label=col)
@@ -295,6 +315,25 @@ elif st.session_state.view == "details":
         # Tab 2: Scatter Plot
         with tab2:
             st.subheader("📉 Scatter Plot")
+            st.markdown("""
+            📝 **Purpose:** Explore the relationship between two selected parameters.
+
+            📊 **What it shows:**
+            - Correlations (positive, negative, or none)
+            - Outliers and unusual behaviors
+
+                🔍 **How to interpret:**
+                - An upward trend of points suggests a positive correlation (as one increases, so does the other).
+                - A downward trend indicates a negative correlation.
+                - Scattered or random points mean no strong relationship.
+                - Distant points may represent anomalies or extreme pollution events.
+
+            📌 **Use cases:**
+            - Detect potential cause-effect relationships.
+            - Refine models or select key parameters.
+            - Support hypotheses in environmental research.
+            """)
+
             all_params = sorted(ts_df["CharacteristicName"].dropna().unique())
             x_var = st.selectbox("X-axis Variable", all_params, key="scatter_x")
             y_var = st.selectbox("Y-axis Variable", [p for p in all_params if p != x_var], key="scatter_y")
@@ -318,10 +357,28 @@ elif st.session_state.view == "details":
                 st.download_button("💾 Download Scatter Plot", data=buf_scatter.getvalue(), file_name="scatter_plot.png")
             else:
                 st.info("Not enough data to generate scatter plot.")
-
         # Tab 3: Summary Statistics
         with tab3:
             st.subheader("📊 Summary Statistics")
+            st.markdown("""
+            📝 **Purpose:** Summarize key statistics for selected parameters, including average, minimum, maximum, standard deviation, and sample count.
+
+            📊 **What it shows:**
+            - General behavior of each parameter
+            - Data consistency or variability
+
+                🔍 **How to interpret:**
+                - Use the **mean** to understand the central tendency.
+                - Compare **mean** vs. **median** to check for skewness or outliers.
+                - A high **standard deviation** suggests high variability.
+                - **Count** tells you how much data is available — fewer than 8 samples may be too little for trend analysis.
+
+            📌 **Use cases:**
+            - Establish baseline values for water quality.
+            - Prepare inputs for modeling.
+            - Compare variability across time or stations.
+            """)
+
             stats = plot_df.describe().T
             st.dataframe(stats.style.format("{:.2f}"))
             csv_stats = stats.to_csv().encode("utf-8")
@@ -329,6 +386,26 @@ elif st.session_state.view == "details":
         # Tab 4: Correlation Heatmap
         with tab4:
             st.subheader("🧮 Correlation Heatmap")
+            st.markdown("""
+            📝 **Purpose:** Show how strongly each parameter correlates with others using a color-coded matrix.
+
+            📊 **What it shows:**
+            - Values near **+1** = strong positive correlation
+            - Values near **-1** = strong negative correlation
+            - Values near **0** = no correlation
+
+                🔍 **How to interpret:**
+                - Darker or more intense colors indicate stronger relationships.
+                - Positive correlations suggest that two parameters increase or decrease together.
+                - Negative correlations mean one increases while the other decreases.
+                - Values close to zero imply no consistent relationship.
+
+            📌 **Use cases:**
+            - Select influential parameters for models or indexes.
+            - Reduce dimensionality in complex datasets.
+            - Reveal potential causes of water quality issues.
+            """)
+
             corr = plot_df.corr()
             if not corr.empty:
                 fig2, ax2 = plt.subplots(figsize=(8, 6))
@@ -344,10 +421,28 @@ elif st.session_state.view == "details":
                 )
             else:
                 st.info("Not enough data for correlation heatmap.")
-
-        # Tab 5: Seasonal Boxplot
+        # Tab 5: Temporal Boxplots
         with tab5:
             st.subheader("📦 Temporal Boxplots")
+            st.markdown("""
+            📝 **Purpose:** Show parameter distributions grouped by time (month, season, or year) using box-and-whisker plots.
+
+            📊 **What it shows:**
+            - Median, quartiles, and data spread
+            - Seasonal variations or long-term shifts
+            - Presence of outliers
+
+                🔍 **How to interpret:**
+                - A longer box indicates greater variability in the data.
+                - Shifts in medians across time may indicate seasonal influence or gradual trends.
+                - Outliers (points beyond the whiskers) could suggest pollution events or measurement anomalies.
+                - Comparing different parameters on the same plot helps identify differences in behavior over time.
+
+            📌 **Use cases:**
+            - Identify critical time periods for management or intervention.
+            - Understand seasonal effects on water quality parameters.
+            - Support decisions about when to schedule sampling campaigns.
+            """)
 
             def get_season(month):
                 if month in [12, 1, 2]:
@@ -396,10 +491,28 @@ elif st.session_state.view == "details":
                 st.download_button("💾 Download Boxplot Image", data=buf5.getvalue(), file_name=f"boxplot_{box_type.lower()}.png")
             else:
                 st.info("Not enough data to generate temporal boxplots.")
-
-        # Tab 6: Mann-Kendall Trend Analysis
+        # Tab 6: Mann-Kendall Trend Test
         with tab6:
             st.subheader("📐 Mann-Kendall Trend Test")
+            st.markdown("""
+            📝 **Purpose:** Statistically test if a parameter is increasing or decreasing over time.
+
+            📊 **What it shows:**
+            - Presence of a monotonic trend (increasing, decreasing, or none)
+            - Significance of the trend (p-value)
+            - Strength and direction (Tau, S statistic)
+
+                🔍 **How to interpret:**
+                - If **p-value < 0.05** and trend is **increasing**, the parameter is likely rising over time (potential degradation).
+                - A **decreasing** trend with significance suggests improving water quality.
+                - If p-value is **not significant**, any observed trend might be random.
+                - **Tau** value closer to +1 or -1 means a stronger trend.
+
+            📌 **Use cases:**
+            - Detect long-term environmental changes.
+            - Provide statistical evidence to support visual trends.
+            - Prioritize stations for remediation or further investigation.
+            """)
 
             try:
                 import pymannkendall as mk
@@ -455,11 +568,27 @@ elif st.session_state.view == "details":
 
             csv_trend = trend_df.to_csv(index=False).encode("utf-8")
             st.download_button("💾 Download Trend Results", data=csv_trend, file_name="trend_analysis.csv")
-
-
         # Tab 7: Water Quality Index (WQI)
         with tab7:
             st.subheader("💧 Water Quality Index (WQI)")
+            st.markdown("""
+            📝 **Purpose:** Combine selected parameters into a single score (0–100) to represent overall water quality.
+
+            📊 **What it shows:**
+            - Weighted average of normalized parameter values
+            - Water quality category: Poor, Moderate, Good, or Excellent
+
+                🔍 **How to interpret:**
+                - A score below 50 suggests poor water quality — may require urgent action.
+                - Scores between 50 and 75 indicate moderate conditions — some concerns may exist.
+                - Scores above 75 represent good to excellent water quality — generally safe.
+                - Weight sliders let you prioritize important parameters (e.g., nutrients, bacteria).
+
+            📌 **Use cases:**
+            - Provide a simple, communicable summary of water quality for non-experts.
+            - Compare multiple sites or time periods with a unified metric.
+            - Support public reports, watershed health evaluations, and education campaigns.
+            """)
 
             wqi_df = ts_df.copy()
             parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
@@ -513,10 +642,27 @@ elif st.session_state.view == "details":
                         st.download_button("💾 Download WQI Data", data=csv_wqi, file_name="wqi_results.csv")
             else:
                 st.info("Please select at least one parameter for WQI.")
-
         # Tab 8: Spatio-Temporal Heatmap
         with tab8:
             st.subheader("🗺️ Spatio-Temporal Heatmap")
+            st.markdown("""
+            📝 **Purpose:** Show how parameter values vary over time and across stations using a heatmap.
+
+            📊 **What it shows:**
+            - Station IDs on Y-axis and time groups (e.g., months, years, or seasons) on X-axis
+            - Color intensity represents average parameter values
+
+                🔍 **How to interpret:**
+                - Darker or more intense colors mean higher values; lighter colors mean lower values.
+                - Horizontal patterns: stations with persistent high or low levels.
+                - Vertical patterns: time periods when most stations experienced spikes or drops.
+                - Look for abrupt shifts across the matrix — they may indicate events like floods, droughts, or contamination.
+
+            📌 **Use cases:**
+            - Identify hotspots in space and time for targeted investigation.
+            - Support regional water quality management strategies.
+            - Understand how events (e.g., seasonal changes or pollution) affect multiple stations over time.
+            """)
 
             time_mode = st.radio("🕒 Aggregation Level", ["Monthly", "Seasonal", "Yearly"], horizontal=True)
 
@@ -576,10 +722,30 @@ elif st.session_state.view == "details":
                     data=buf_hm.getvalue(),
                     file_name=f"heatmap_{param}_{time_mode.lower()}.png"
                 )
-
-        # Tab 9: Anomaly Detection
+        # Tab 9: Anomaly Detection (Z-score)
         with tab9:
             st.subheader("🚨 Anomaly Detection (Z-score)")
+            st.markdown("""
+            📝 **Purpose:** Identify extreme values that deviate significantly from typical behavior, using statistical Z-scores.
+
+            📊 **What it shows:**
+            - Parameter measurements that are unusually high or low (Z-score > 3 or < -3)
+            - Dates, stations, and parameters where anomalies occurred
+
+                🔍 **How to interpret:**
+                - High Z-scores (positive or negative) indicate rare or unexpected events.
+                - A few anomalies may be natural events; repeated anomalies may suggest pollution or instrumentation errors.
+                - Review dates and locations of anomalies to identify patterns or triggers.
+
+                ⚠️ **Important:** 
+                - You must select multiple stations to enable comparison and meaningful detection.
+                - This tool works best when comparing several locations across time.
+
+            📌 **Use cases:**
+            - Detect contamination events, sensor malfunctions, or outlier behavior
+            - Improve quality control of monitoring data
+            - Identify high-risk stations for more frequent sampling
+            """)
 
             z_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ResultMeasureValue"])
             if z_df.empty:
@@ -603,10 +769,30 @@ elif st.session_state.view == "details":
 
                 csv_anom = anomalies.to_csv(index=False).encode("utf-8")
                 st.download_button("💾 Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
-
-        # Tab 10: Clustering
+        # Tab 10: Clustering (KMeans)
         with tab10:
             st.subheader("📍 KMeans Clustering of Selected Stations")
+            st.markdown("""
+            📝 **Purpose:** Group stations with similar water quality profiles into distinct clusters using the KMeans algorithm.
+
+            📊 **What it shows:**
+            - Cluster labels assigned to each selected station
+            - PCA visualization showing how stations are grouped in two-dimensional space
+
+                🔍 **How to interpret:**
+                - Stations in the same cluster share similar average values for the selected parameters.
+                - Isolated stations or small clusters may indicate unique water quality conditions.
+                - The PCA plot helps visually separate clusters and explore spatial or parameter-based patterns.
+
+                ⚠️ **Important:**
+                - You must select at least 2 stations for clustering to work.
+                - Selecting more stations improves the quality and meaning of the cluster groups.
+
+            📌 **Use cases:**
+            - Identify regions with similar pollution profiles or environmental stress
+            - Design monitoring or restoration plans based on station clusters
+            - Simplify complex datasets by grouping similar locations
+            """)
 
             cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy().dropna(subset=["ResultMeasureValue"])
             all_names = cluster_df["Name"].dropna().unique().tolist()
@@ -622,7 +808,7 @@ elif st.session_state.view == "details":
             )
 
             if pivot.empty or pivot.shape[0] < 2:
-                st.info("❗ Not enough valid stations for clustering.")
+                st.info("❗ Not enough valid stations for clustering. Please select at least 2.")
             else:
                 from sklearn.preprocessing import StandardScaler
                 from sklearn.cluster import KMeans
@@ -665,4 +851,4 @@ elif st.session_state.view == "details":
                     ax_pca.legend()
                     st.pyplot(fig_pca)
                 except Exception:
-                    st.warning("⚠️ PCA scatter plot could not be generated.")        
+                    st.warning("⚠️ PCA scatter plot could not be generated.")
