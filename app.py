@@ -647,24 +647,26 @@ with tab9:
 with tab10:
     if selected:
         st.subheader("📍 Clustering (KMeans)")
+
         from sklearn.cluster import KMeans
 
-        cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
+        # Allow user to select multiple stations
+        available_stations = ts_df["StationKey"].dropna().unique().tolist()
+        selected_stations = st.multiselect("📍 Select stations to include in clustering", available_stations, default=available_stations[:5])
+
+        cluster_df = ts_df[(ts_df["StationKey"].isin(selected_stations)) & 
+                           (ts_df["CharacteristicName"].isin(selected))].copy()
+
         cluster_df = cluster_df.dropna(subset=["Latitude", "Longitude", "ResultMeasureValue"])
-        grouped = cluster_df.groupby("StationKey")["ResultMeasureValue"].mean().reset_index()
+        grouped = cluster_df.groupby("StationKey")[["Latitude", "Longitude"]].mean().reset_index()
 
-        # Split StationKey to get coordinates
-        if "Latitude" not in grouped.columns or "Longitude" not in grouped.columns:
-            try:
-                grouped[["Latitude", "Longitude"]] = grouped["StationKey"].str.split(",", expand=True).astype(float)
-            except Exception as e:
-                st.error("❌ Could not extract Latitude and Longitude from StationKey.")
-                st.stop()
+        num_points = len(grouped)
+        n_clusters = st.slider("Select number of clusters:", 2, min(10, num_points if num_points >= 2 else 2), 3)
 
-        n_clusters = st.slider("Select number of clusters:", 2, 10, 4)
-
-        if len(grouped) < n_clusters:
-            st.error(f"⚠️ You only have {len(grouped)} stations, which is less than the number of clusters ({n_clusters}). Reduce the cluster count.")
+        if num_points < 2:
+            st.warning("⚠️ Not enough stations selected with valid coordinates to perform clustering.")
+        elif num_points < n_clusters:
+            st.warning(f"⚠️ Selected only {num_points} station(s). Reduce number of clusters to ≤ {num_points}.")
         else:
             kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(grouped[["Latitude", "Longitude"]])
             grouped["Cluster"] = kmeans.labels_
@@ -680,4 +682,5 @@ with tab10:
             st.download_button("💾 Download Cluster Map", data=buf_clust.getvalue(), file_name="clustering_map.png")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
 
