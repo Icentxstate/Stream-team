@@ -699,7 +699,13 @@ with tab8:
         heat_param = st.selectbox("📌 Select parameter for heatmap", sorted(ts_df["CharacteristicName"].dropna().unique()), key="heat_param")
 
         df_hm = ts_df[ts_df["CharacteristicName"] == heat_param].copy()
-        if df_hm.empty:
+
+        required_cols = ["CharacteristicName", "ActivityStartDate", "ResultMeasureValue", "MonitoringLocationIdentifier"]
+        missing = [col for col in required_cols if col not in df_hm.columns]
+
+        if missing:
+            st.error(f"❌ Missing required column(s): {', '.join(missing)}")
+        elif df_hm.empty:
             st.warning("No data available for this parameter.")
         else:
             df_hm["Date"] = pd.to_datetime(df_hm["ActivityStartDate"])
@@ -718,6 +724,7 @@ with tab8:
             st.download_button("💾 Download Heatmap", data=buf8.getvalue(), file_name=f"{heat_param}_heatmap.png")
     else:
         st.info("No time series data available.")
+
 with tab9:
     st.subheader("🚨 Anomaly Detection")
 
