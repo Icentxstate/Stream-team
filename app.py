@@ -14,6 +14,7 @@ from streamlit_folium import st_folium
 
 # --- UI config ---
 st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🗺️", layout="wide")
+
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=PT+Serif&display=swap');
@@ -87,9 +88,15 @@ st.markdown("""
     iframe {
         border: none;
     }
+
+    /* Make tab labels larger and bold */
+    .stTabs [role="tab"] {
+        font-size: 18px !important;
+        font-weight: bold !important;
+        color: #0c6e72 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
-
 # 📌 Orange Welcome Card (only on map view)
 if "view" in st.session_state and st.session_state.view == "map":
     st.markdown("""
@@ -263,12 +270,6 @@ elif st.session_state.view == "details":
     ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
     subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
     selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
-
-    if selected:
-            st.markdown(
-                    f"<div style='margin-top:10px;margin-bottom:20px;'><b style='font-size:18px;'>Selected Parameters:</b> <span style='font-size:18px;color:#0c6e72;font-weight:bold;'>{', '.join(selected)}</span></div>",
-            unsafe_allow_html=True
-        )
 
     if selected:
         plot_df = (
