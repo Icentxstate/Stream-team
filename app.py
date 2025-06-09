@@ -249,20 +249,21 @@ if st.session_state.view == "map":
             st.rerun()
 #########------------------------------ADD-----------------------------
 elif st.session_state.view == "details":
-    coords = st.session_state.selected_point
-    lat, lon = map(float, coords.split(","))
-    st.title("📊 Station Analysis")
-    st.write(f"📍 Coordinates: {lat:.5f}, {lon:.5f}")
+coords = st.session_state.selected_point
+lat, lon = map(float, coords.split(","))
+st.title("📊 Station Analysis")
+st.write(f"📍 Coordinates: {lat:.5f}, {lon:.5f}")
 
-    with st.form("back_form"):
-        submitted = st.form_submit_button("🔙 Back to Map")
-        if submitted:
-            st.session_state.view = "map"
-            st.rerun()
+with st.form("back_form"):
+    submitted = st.form_submit_button("🔙 Back to Map")
+    if submitted:
+        st.session_state.view = "map"
+        st.rerun()
 
-    ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
-    subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
-    selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
+ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
+subparams = sorted(ts_df["CharacteristicName"].dropna().unique())  # تعریف درست
+selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])  # حالا بدون خطا
+
 
     # ✅ همیشه تب‌ها را تعریف کن (حتی اگر selected خالی باشد)
 selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
