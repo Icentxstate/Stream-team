@@ -335,7 +335,7 @@ elif st.session_state.view == "details":
             csv_stats = stats.to_csv().encode("utf-8")
             st.download_button("💾 Download Summary CSV", data=csv_stats, file_name="summary_statistics.csv")
 
-        # --- Tab 4: Correlation Heatmap ---
+# --- Tab 4: Correlation Heatmap ---
 with tab4:
     if selected:
         st.subheader("🧮 Correlation Heatmap")
@@ -344,10 +344,20 @@ with tab4:
             fig2, ax2 = plt.subplots(figsize=(8, 6))
             sns.heatmap(corr, annot=True, cmap="YlGnBu", fmt=".2f", ax=ax2)
             st.pyplot(fig2)
+
+            from io import BytesIO
+            buf_corr = BytesIO()
+            fig2.savefig(buf_corr, format="png")
+            st.download_button(
+                "💾 Download Correlation Heatmap",
+                data=buf_corr.getvalue(),
+                file_name="correlation_heatmap.png"
+            )
         else:
             st.info("Not enough data for correlation heatmap.")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
 
 # --- Tab 5: Seasonal Boxplot ---
 with tab5:
