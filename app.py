@@ -260,9 +260,19 @@ elif st.session_state.view == "details":
             st.session_state.view = "map"
             st.rerun()
 
-    ts_df = df_long[df_long["StationKey"] == coords].sort_values("ActivityStartDate")
-    subparams = sorted(ts_df["CharacteristicName"].dropna().unique())
-    selected = st.multiselect("📉 Select parameters", subparams, default=subparams[:1])
+    # 🎨 Styled Container for Analysis Tabs
+st.markdown("""
+<div style='
+    background-color: #f6fcfc;
+    border-left: 5px solid #0c6e72;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    border-radius: 8px;
+'>
+""", unsafe_allow_html=True)
+
+st.markdown("### 📉 Select parameters")
+selected = st.multiselect("", subparams, default=subparams[:1])
 
     if selected:
         plot_df = (
