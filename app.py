@@ -696,6 +696,7 @@ elif st.session_state.view == "details":
 
 
         # Tab 7: Water Quality Index (WQI)
+        # Tab 7: Water Quality Index (WQI)
         with tab7:
             st.subheader("💧 Water Quality Index (WQI)")
 
@@ -704,7 +705,7 @@ elif st.session_state.view == "details":
 
             col1, col2 = st.columns([1, 9])
             with col1:
-                if st.button("❔", key="toggle_help_tab7"):
+                if st.button("❔", key="toggle_help_tab7_button"):
                     st.session_state["show_help_tab7"] = not st.session_state["show_help_tab7"]
 
             if st.session_state["show_help_tab7"]:
@@ -720,18 +721,35 @@ elif st.session_state.view == "details":
                         🔍 **How to interpret:**
                         - Higher WQI = better water quality.
                         - Use trends to detect improvement or degradation.
-                        - Weights should reflect importance of each parameter (e.g., DO > TDS).
+                        - Weights should reflect importance of each parameter.
 
                         📌 **Use cases:**
                         - Simplify reporting for stakeholders
                         - Compare water quality across sites and times
                         - Integrate into dashboards and alerts
+
+                        ✅ **Recommended Parameters for WQI (based on this dataset):**
+                        - `Dissolved Oxygent (mg/L)`
+                        - `pH`
+                        - `Conductivity (µs/cm)`
+                        - `Water Temperature (°C)`
+                        - `E. Coli Average`
+                        - `Nitrate-Nitrogen (ppm or mg/L)`
+
+                        🧮 **Tip:** You can adjust the weights based on monitoring priorities. Ensure the total weight equals 1.
                     """)
 
             wqi_df = ts_df.copy()
             parameters = sorted(wqi_df["CharacteristicName"].dropna().unique())
 
-            selected_wqi_params = st.multiselect("🧪 Select parameters for WQI", parameters, default=parameters[:3])
+            selected_wqi_params = st.multiselect("🧪 Select parameters for WQI", parameters, default=[
+                "Dissolved Oxygent (mg/L)",
+                "pH",
+                "Conductivity (µs/cm)",
+                "Water Temperature (°C)",
+                "E. Coli Average",
+                "Nitrate-Nitrogen (ppm or mg/L)"
+            ])
 
             if selected_wqi_params:
                 st.markdown("### ⚖️ Assign weights (total should sum to 1):")
@@ -785,7 +803,6 @@ elif st.session_state.view == "details":
                         st.download_button("💾 Download WQI Data", data=csv_wqi, file_name="wqi_results.csv")
             else:
                 st.info("Please select at least one parameter for WQI.")
-
 
         # Tab 8: Spatio-Temporal Heatmap
         with tab8:
