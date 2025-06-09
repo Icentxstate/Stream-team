@@ -657,77 +657,103 @@ with tab9:
         st.warning("⚠️ Please select at least one parameter.")
 
 #-------------------------------10
-
+# --- Tab 10: Clustering ---
 with tab10:
     if selected:
-        st.subheader("📍 KMeans Clustering of Selected Stations")
+        st.subheader("📍 KMeans Clustering on Selected Parameters")
 
-        cluster_df = df_long[df_long["CharacteristicName"].isin(selected)].copy()
+        # فیلتر داده برای پارامترهای انتخاب‌شده
+        cluster_df = ts_df[ts_df["CharacteristicName"].isin(selected)].copy()
         cluster_df = cluster_df.dropna(subset=["ResultMeasureValue"])
 
         # انتخاب ایستگاه‌ها
-        all_names = cluster_df["Name"].dropna().unique().tolist()
-        selected_names = st.multiselect("📍 Select stations for clustering", all_names, default=all_names[:5])
+        station_options = cluster_df["Name"].dropna().unique().tolist()
+        selected_stations = st.multiselect("🏷️ Select stations to include", station_options, default=station_options[:5])
 
-        filtered = cluster_df[cluster_df["Name"].isin(selected_names)]
+        cluster_df = cluster_df[cluster_df["Name"].isin(selected_stations)]
 
-        # Pivot: StationKey × Parameter → average value
-        pivot = (
-            filtered
-            .groupby(["StationKey", "CharacteristicName"])["ResultMeasureValue"]
-            .mean()
-            .unstack()
-            .dropna()
+        # Pivot جدول به فرمت ایستگاه × پارامتر
+        pivot = cluster_df.pivot_table(
+            index="Name",
+            columns="CharacteristicName",
+            values="ResultMeasureValue",
+            aggfunc="mean"
         )
 
-        if pivot.empty or pivot.shape[0] < 2:
-            st.info("❗ Not enough valid stations for clustering.")
+        if pivot.isnull().all(axis=1).any() or pivot.empty:
+            st.warning("⚠️ Not enough data for clustering.")
         else:
-            from sklearn.preprocessing import StandardScaler
-            from sklearn.cluster import KMeans
-            from sklearn.decomposition import PCA
+            # حذف ایستگاه‌هایی که همه داده‌هایشان NaN است
+            pivot = pivot.dropna(how="all")
 
-            num_clusters = st.slider("Select number of clusters", 2, min(10, len(pivot)), 3)
+            # --- Standardize
+            scaler = StandardScaler()
+            scaled = scaler.fit_transform(pivot)
 
-            scaled = StandardScaler().fit_transform(pivot)
+            # --- Select number of clusters
+            num_clusters = st.slider("🔢 Select number of clusters", min_value=2, max_value=min(10, len(pivot)), value=3)
+
+            # --- KMeans Clustering
             kmeans = KMeans(n_clusters=num_clusters, random_state=42)
             clusters = kmeans.fit_predict(scaled)
 
-            pivot["Cluster"] = clusters
-            pivot.reset_index(inplace=True)
+            # --- Merge with coordinates
+            coord_df = cluster_df.groupby("Name")[["Latitude", "Longitude"]].first().reset_index()
+            merged = pd.DataFrame({
+                "Name": pivot.index,
+                "Cluster": clusters
+            }).merge(coord_df, on="Name", how="left")
 
-            # Merge for info
-            merged = pivot.merge(
-                df_long[["StationKey", "Name", "Latitude", "Longitude"]].drop_duplicates(),
-                on="StationKey",
-                how="left"
-            )
+            # --- Show Results
+            st.dataframe(merged)
 
-            st.markdown("### 📋 Clustered Station Summary")
-            st.dataframe(merged[["Name", "Latitude", "Longitude", "Cluster"] + selected])
+            # --- Cluster Map
+            m_cluster = folium.Map(location=[merged["Latitude"].mean(), merged["Longitude"].mean()], zoom_start=10)
+            colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
 
-            # Download
-            csv_clus = merged.to_csv(index=False).encode("utf-8")
-            st.download_button("💾 Download Clustering Data", data=csv_clus, file_name="clustered_stations.csv")
+            for _, row in merged.iterrows():
+                folium.CircleMarker(
+                    location=[row["Latitude"], row["Longitude"]],
+                    radius=7,
+                    color=colors[row["Cluster"] % len(colors)],
+                    fill=True,
+                    fill_opacity=0.9,
+                    popup=f"{row['Name']}<br>Cluster: {row['Cluster']}"
+                ).add_to(m_cluster)
 
-            # PCA Plot
+            st_folium(m_cluster, width=700, height=500)
+
+            # --- PCA Plot (optional)
             try:
-                pca = PCA(n_components=2)
-                pca_result = pca.fit_transform(scaled)
-                merged["PC1"] = pca_result[:, 0]
-                merged["PC2"] = pca_result[:, 1]
+                pca_input = pivot.dropna()
+                if pca_input.shape[0] < 2 or pca_input.shape[1] < 2:
+                    st.warning("⚠️ Not enough data for PCA plot (at least 2 stations and 2 parameters are needed).")
+                else:
+                    pca_scaled = StandardScaler().fit_transform(pca_input)
+                    pca = PCA(n_components=2)
+                    pca_result = pca.fit_transform(pca_scaled)
 
-                fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
-                for i in range(num_clusters):
-                    sub = merged[merged["Cluster"] == i]
-                    ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
-                ax_pca.set_title("PCA View of Clusters")
-                ax_pca.set_xlabel("Principal Component 1")
-                ax_pca.set_ylabel("Principal Component 2")
-                ax_pca.legend()
-                st.pyplot(fig_pca)
+                    merged["PC1"] = pca_result[:, 0]
+                    merged["PC2"] = pca_result[:, 1]
+
+                    fig_pca, ax_pca = plt.subplots(figsize=(8, 6))
+                    for i in range(num_clusters):
+                        sub = merged[merged["Cluster"] == i]
+                        ax_pca.scatter(sub["PC1"], sub["PC2"], label=f"Cluster {i}")
+                    ax_pca.set_title("PCA View of Clusters")
+                    ax_pca.set_xlabel("Principal Component 1")
+                    ax_pca.set_ylabel("Principal Component 2")
+                    ax_pca.legend()
+                    st.pyplot(fig_pca)
+
+                    # Download button
+                    buf_pca = BytesIO()
+                    fig_pca.savefig(buf_pca, format="png")
+                    st.download_button("💾 Download PCA Plot", data=buf_pca.getvalue(), file_name="pca_clusters.png")
+
             except Exception as e:
-                st.warning("⚠️ PCA scatter plot could not be generated.")
+                st.warning(f"⚠️ PCA plot could not be generated: {e}")
     else:
         st.warning("⚠️ Please select at least one parameter.")
+
 
