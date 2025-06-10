@@ -12,18 +12,6 @@ import seaborn as sns
 from branca.colormap import StepColormap
 from streamlit_folium import st_folium
 
-
-#############################
-import warnings
-warnings.filterwarnings("ignore")
-
-import sys
-import streamlit.runtime.scriptrunner.script_run_context as script_context
-
-# غیرفعال کردن Streamlit error reporter
-sys.tracebacklimit = 0
-######################################
-
 # --- UI CONFIG ---
 st.set_page_config(page_title="Cypress Creek Dashboard", page_icon="🗺️", layout="wide")
 
