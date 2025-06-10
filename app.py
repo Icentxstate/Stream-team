@@ -144,7 +144,7 @@ colormap = StepColormap(
 
 # --- BASEMAP SELECTION ---
 basemap_option = st.sidebar.selectbox("🗺️ Basemap Style", [
-    "OpenTopoMap", "Esri World Topo Map", "CartoDB Positron", "Esri Satellite Imagery"
+    "OpenTopoMap", "Esri World Topo Map","Esri Satellite Imagery"
 ])
 basemap_tiles = {
     "OpenTopoMap": {
@@ -155,10 +155,8 @@ basemap_tiles = {
         "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
         "attr": "Esri Topo"
     },
-    "CartoDB Positron": {
-        "tiles": "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-        "attr": "CartoDB"
-    },
+
+},
     "Esri Satellite Imagery": {
         "tiles": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         "attr": "Esri Imagery"
