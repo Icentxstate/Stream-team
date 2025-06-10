@@ -947,8 +947,6 @@ elif st.session_state.view == "details":
                     st.download_button("\ud83d\udcbe Download Anomaly Data", data=csv_anom, file_name="anomalies_selected.csv")
             except Exception as e:
                 st.error(f"\u274c Failed to detect anomalies: {e}")
-        with tab9:
-            ... (Anomaly Detection code here)
 
         with tab10:
             st.subheader("\ud83d\udccd KMeans Clustering of Selected Stations")
