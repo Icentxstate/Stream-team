@@ -164,8 +164,10 @@ basemap_tiles = {
         "attr": "Esri Imagery"
     }
 }
+
 # --- MAP VIEW ---
 if st.session_state.view == "map":
+    # ساخت نقشه Folium
     m = folium.Map(
         location=[(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2],
         tiles=basemap_tiles[basemap_option]["tiles"],
@@ -173,7 +175,7 @@ if st.session_state.view == "map":
     )
     m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
 
-    # Add county layer
+    # افزودن لایه County
     folium.GeoJson(
         gdf_safe,
         style_function=lambda x: {
@@ -185,49 +187,48 @@ if st.session_state.view == "map":
         name="Counties"
     ).add_to(m)
 
-# Add circle markers for each station with full popup details
-for key, row in latest_values.iterrows():
-    lat, lon = row["Latitude"], row["Longitude"]
-    val = row["ResultMeasureValue"]
-    color = colormap(val)
+    # افزودن مارکرها با اطلاعات کامل به نقشه
+    for key, row in latest_values.iterrows():
+        lat, lon = row["Latitude"], row["Longitude"]
+        val = row["ResultMeasureValue"]
+        color = colormap(val)
 
-    popup_content = f"""
-    <b>Name:</b> {row.get('Name', 'N/A')}<br>
-    <b>Description:</b> {row.get('Description', 'N/A')}<br>
-    <b>Basin:</b> {row.get('Basin', 'N/A')}<br>
-    <b>County:</b> {row.get('County', 'N/A')}<br>
-    <b>Latitude:</b> {lat:.5f}<br>
-    <b>Longitude:</b> {lon:.5f}<br>
-    <b>{selected_param}:</b> {val:.2f}<br>
-    <b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}
-    """
+        popup_content = f"""
+        <b>Name:</b> {row.get('Name', 'N/A')}<br>
+        <b>Description:</b> {row.get('Description', 'N/A')}<br>
+        <b>Basin:</b> {row.get('Basin', 'N/A')}<br>
+        <b>County:</b> {row.get('County', 'N/A')}<br>
+        <b>Latitude:</b> {lat:.5f}<br>
+        <b>Longitude:</b> {lon:.5f}<br>
+        <b>{selected_param}:</b> {val:.2f}<br>
+        <b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}
+        """
 
-    folium.CircleMarker(
-        location=[lat, lon],
-        radius=6,
-        color=color,
-        fill=True,
-        fill_opacity=0.8,
-        popup=folium.Popup(popup_content, max_width=300),
-    ).add_to(m)
+        folium.CircleMarker(
+            location=[lat, lon],
+            radius=6,
+            color=color,
+            fill=True,
+            fill_opacity=0.8,
+            popup=folium.Popup(popup_content, max_width=300),
+        ).add_to(m)
 
-# ✅ این‌ها باید خارج از حلقه باشند:
-colormap.add_to(m)
-folium.LayerControl().add_to(m)
+    # افزودن color legend و کنترل لایه‌ها
+    colormap.add_to(m)
+    folium.LayerControl().add_to(m)
 
-st_data = st_folium(m, width=None, height=600)
+    # نمایش نقشه در Streamlit
+    st_data = st_folium(m, width=None, height=600)
 
-# If point clicked → trigger detail view
-if st_data and st_data.get("last_object_clicked"):
-    clicked = st_data["last_object_clicked"]
-    lat = clicked.get("lat")
-    lon = clicked.get("lng")
-    if lat is not None and lon is not None:
-        st.session_state.selected_point = f"{lat},{lon}"
-        st.session_state.view = "details"
-        st.rerun()
-
-
+    # بررسی کلیک کاربر روی نقشه
+    if st_data and st_data.get("last_object_clicked"):
+        clicked = st_data["last_object_clicked"]
+        lat = clicked.get("lat")
+        lon = clicked.get("lng")
+        if lat is not None and lon is not None:
+            st.session_state.selected_point = f"{lat},{lon}"
+            st.session_state.view = "details"
+            st.rerun()
 
 # --- DETAIL VIEW ---
 elif st.session_state.view == "details":
