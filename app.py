@@ -185,8 +185,7 @@ if st.session_state.view == "map":
         name="Counties"
     ).add_to(m)
 
-
-    # Add circle markers for each station with full popup details
+# Add circle markers for each station with full popup details
 for key, row in latest_values.iterrows():
     lat, lon = row["Latitude"], row["Longitude"]
     val = row["ResultMeasureValue"]
@@ -212,20 +211,23 @@ for key, row in latest_values.iterrows():
         popup=folium.Popup(popup_content, max_width=300),
     ).add_to(m)
 
-    colormap.add_to(m)
-    folium.LayerControl().add_to(m)
+# ✅ این‌ها باید خارج از حلقه باشند:
+colormap.add_to(m)
+folium.LayerControl().add_to(m)
 
-    st_data = st_folium(m, width=None, height=600)
+st_data = st_folium(m, width=None, height=600)
 
-    # If point clicked → trigger detail view
-    if st_data and st_data.get("last_object_clicked"):
-        clicked = st_data["last_object_clicked"]
-        lat = clicked.get("lat")
-        lon = clicked.get("lng")
-        if lat is not None and lon is not None:
-            st.session_state.selected_point = f"{lat},{lon}"
-            st.session_state.view = "details"
-            st.rerun()
+# If point clicked → trigger detail view
+if st_data and st_data.get("last_object_clicked"):
+    clicked = st_data["last_object_clicked"]
+    lat = clicked.get("lat")
+    lon = clicked.get("lng")
+    if lat is not None and lon is not None:
+        st.session_state.selected_point = f"{lat},{lon}"
+        st.session_state.view = "details"
+        st.rerun()
+
+
 
 # --- DETAIL VIEW ---
 elif st.session_state.view == "details":
