@@ -190,16 +190,25 @@ if st.session_state.view == "map":
         lat, lon = row["Latitude"], row["Longitude"]
         val = row["ResultMeasureValue"]
         color = colormap(val)
+
+        popup_content = f"""
+        <b>Name:</b> {row.get('Name', 'N/A')}<br>
+        <b>Description:</b> {row.get('Description', 'N/A')}<br>
+        <b>Basin:</b> {row.get('Basin', 'N/A')}<br>
+        <b>County:</b> {row.get('County', 'N/A')}<br>
+        <b>Latitude:</b> {lat:.5f}<br>
+        <b>Longitude:</b> {lon:.5f}<br>
+        <b>{selected_param}:</b> {val:.2f}<br>
+        <b>Date:</b> {row['ActivityStartDate'].strftime('%Y-%m-%d')}
+        """
+
         folium.CircleMarker(
             location=[lat, lon],
             radius=6,
             color=color,
             fill=True,
             fill_opacity=0.8,
-            popup=folium.Popup(
-                f"{row['Name']}<br>{selected_param}: {val:.2f}<br>{row['ActivityStartDate'].strftime('%Y-%m-%d')}",
-                max_width=250
-            ),
+            popup=folium.Popup(popup_content, max_width=300),
         ).add_to(m)
 
     colormap.add_to(m)
