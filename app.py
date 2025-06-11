@@ -493,19 +493,9 @@ with tab5:
 with tab6:
     st.markdown("### 📐 Mann-Kendall Trend Analysis")
 
-    # راهنما در expander
     with st.expander("❔ Help – What is Mann-Kendall Trend Test?"):
-        st.markdown("""
-        <div style='font-size: 15px; line-height: 1.7;'>
-        🔹 This test detects **monotonic trends** (increasing or decreasing) over time.<br>
-        🔸 A **significant p-value** (usually < 0.05) means the trend is statistically meaningful.<br>
-        🔹 **Tau** shows direction and strength:<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;• +Tau = upward trend<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;• -Tau = downward trend<br>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""...""", unsafe_allow_html=True)
 
-    # بررسی وجود pymannkendall
     try:
         import pymannkendall as mk
     except ImportError:
@@ -513,6 +503,7 @@ with tab6:
         st.stop()
 
     try:
+        # 🔽 اینجا تمام بدنه تحلیل باید داخل try باشه
         trend_results = []
 
         for param in selected:
@@ -554,33 +545,19 @@ with tab6:
                 })
 
         trend_df = pd.DataFrame(trend_results)
+        # جدول نمایش و استایل
+        st.dataframe(trend_df)
 
-        # رنگ‌بندی برای درک بهتر
-        def highlight_trend(val):
-            if val == "increasing":
-                return "background-color: #d0f0c0"
-            elif val == "decreasing":
-                return "background-color: #ffe0e0"
-            elif val == "no trend":
-                return "background-color: #f0f0f0"
-            return ""
-
-        st.markdown("#### 📋 Trend Test Results")
-        st.dataframe(
-            trend_df.style.applymap(highlight_trend, subset=["Trend"])
-                         .format({"Tau": "{:.2f}", "p-value": "{:.4f}"})
-        )
-
-        # دکمه دانلود CSV
+        # دانلود CSV
         csv_trend = trend_df.to_csv(index=False).encode("utf-8")
         st.download_button(
             "💾 Download Trend Results (CSV)",
             data=csv_trend,
             file_name="trend_analysis.csv"
         )
-
     except Exception as e:
         st.error(f"❌ Failed to perform trend analysis: {e}")
+
 with tab7:
     st.markdown("### 💧 Water Quality Index (WQI)")
 
