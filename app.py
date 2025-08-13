@@ -69,7 +69,7 @@ if st.session_state.view == "map":
     """, unsafe_allow_html=True)
 
 # --- LOAD DATA ---
-csv_path = "WQ.csv"
+csv_path = "filtered_points.csv"
 shp_zip = "BORDER.zip"
 shp_folder = "shp_extracted"
 
