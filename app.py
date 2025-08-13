@@ -70,7 +70,7 @@ if st.session_state.view == "map":
 
 # --- LOAD DATA ---
 csv_path = "WQ.csv"
-shp_zip = "filtered_11_counties.zip"
+shp_zip = "BORDER.zip"
 shp_folder = "shp_extracted"
 
 try:
